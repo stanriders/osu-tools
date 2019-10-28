@@ -12,6 +12,7 @@ using Newtonsoft.Json;
 using osu.Framework.IO.Network;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 
@@ -92,10 +93,41 @@ namespace PerformanceCalculator.Profile
                     }
                 });
 
+                var perfCalc = ruleset.CreatePerformanceCalculator(working, score.ScoreInfo);
+
+                // TEMP: mods cant be unserialized unfortunately
+                if (mods.Length == 0)
+                {
+                    var diffCache = $"cache/{working.BeatmapInfo.OnlineBeatmapID}{string.Join(string.Empty, mods.Select(x => x.Acronym))}_diff.json";
+
+                    if (File.Exists(diffCache))
+                    {
+                        var userCalcDate = File.GetLastWriteTime(diffCache).ToUniversalTime();
+                        var calcUpdateDate = File.GetLastWriteTime("osu.Game.Rulesets.Osu.dll").ToUniversalTime();
+
+                        if (userCalcDate > calcUpdateDate)
+                        {
+                            var file = File.ReadAllText(diffCache);
+                            var attr = JsonConvert.DeserializeObject<OsuDifficultyAttributes>(file);
+                            perfCalc.Attributes = attr;
+                        }
+                        else
+                        {
+                            perfCalc.Attributes = new ProcessorOsuDifficultyCalculator(ruleset, working).Calculate(mods);
+                        }
+                    }
+                    else
+                        perfCalc.Attributes = new ProcessorOsuDifficultyCalculator(ruleset, working).Calculate(mods);
+                }
+                else
+                {
+                    perfCalc.Attributes = ruleset.CreateDifficultyCalculator(working).Calculate(mods);
+                }
+
                 var thisPlay = new UserPlayInfo
                 {
                     Beatmap = working.BeatmapInfo,
-                    LocalPP = ruleset.CreatePerformanceCalculator(working, score.ScoreInfo).Calculate(),
+                    LocalPP = perfCalc.Calculate(),
                     LivePP = play.pp,
                     Mods = mods.Length > 0 ? mods.Select(m => m.Acronym).Aggregate((c, n) => $"{c}, {n}") : "None"
                 };
