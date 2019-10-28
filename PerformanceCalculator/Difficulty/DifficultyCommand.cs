@@ -105,8 +105,8 @@ namespace PerformanceCalculator.Difficulty
                 case OsuDifficultyAttributes osu:
                     result.AttributeData = new List<(string, object)>
                     {
-                        ("aim rating", osu.AimStrain.ToString("N2")),
-                        ("speed rating", osu.SpeedStrain.ToString("N2")),
+                        //("aim rating", osu.AimStrain.ToString("N2")),
+                        //("speed rating", osu.SpeedStrain.ToString("N2")),
                         ("max combo", osu.MaxCombo),
                         ("approach rate", osu.ApproachRate.ToString("N2")),
                         ("overall difficulty", osu.OverallDifficulty.ToString("N2"))

@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
-using Alba.CsConsoleFormat;
 using JetBrains.Annotations;
 using McMaster.Extensions.CommandLineUtils;
+using Newtonsoft.Json;
 using osu.Framework.IO.Network;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets.Mods;
@@ -37,6 +37,15 @@ namespace PerformanceCalculator.Profile
 
         private const string base_url = "https://osu.ppy.sh";
 
+        class ResultBeatmap
+        {
+            public string Beatmap { get; set; }
+            public string LivePP { get; set; }
+            public string LocalPP { get; set; }
+            public string PPChange { get; set; }
+            public string PositionChange { get; set; }
+        }
+
         public override void Execute()
         {
             var displayPlays = new List<UserPlayInfo>();
@@ -61,6 +70,9 @@ namespace PerformanceCalculator.Profile
                 }
 
                 Mod[] mods = ruleset.ConvertLegacyMods((LegacyMods)play.enabled_mods).ToArray();
+
+                if (new FileInfo(cachePath).Length <= 0)
+                    continue;
 
                 var working = new ProcessorWorkingBeatmap(cachePath, (int)play.beatmap_id);
 
@@ -106,31 +118,34 @@ namespace PerformanceCalculator.Profile
             totalLocalPP += playcountBonusPP;
             double totalDiffPP = totalLocalPP - totalLivePP;
 
-            OutputDocument(new Document(
-                new Span($"User:     {userData.username}"), "\n",
-                new Span($"Live PP:  {totalLivePP:F1} (including {playcountBonusPP:F1}pp from playcount)"), "\n",
-                new Span($"Local PP: {totalLocalPP:F1} ({totalDiffPP:+0.0;-0.0;-})"), "\n",
-                new Grid
+            var obj = new
+            {
+                UserID = userData.user_id,
+                Username = userData.username,
+                LivePP = $"{totalLivePP:F1} (including {playcountBonusPP:F1}pp from playcount)",
+                LocalPP = $"{totalLocalPP:F1} ({totalDiffPP:+0.0;-0.0;-})",
+                Beatmaps = new List<ResultBeatmap>()
+            };
+
+            foreach (var item in localOrdered)
+            {
+                var mods = item.Mods == "None" ? string.Empty : item.Mods.Insert(0, "+");
+                obj.Beatmaps.Add(new ResultBeatmap()
                 {
-                    Columns = { GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Auto },
-                    Children =
-                    {
-                        new Cell("beatmap"),
-                        new Cell("live pp"),
-                        new Cell("local pp"),
-                        new Cell("pp change"),
-                        new Cell("position change"),
-                        localOrdered.Select(item => new[]
-                        {
-                            new Cell($"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap}"),
-                            new Cell($"{item.LivePP:F1}") { Align = Align.Right },
-                            new Cell($"{item.LocalPP:F1}") { Align = Align.Right },
-                            new Cell($"{item.LocalPP - item.LivePP:F1}") { Align = Align.Right },
-                            new Cell($"{liveOrdered.IndexOf(item) - localOrdered.IndexOf(item):+0;-0;-}") { Align = Align.Center },
-                        })
-                    }
-                }
-            ));
+                    Beatmap = $"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods}",
+                    LivePP = $"{item.LivePP:F1}",
+                    LocalPP = $"{item.LocalPP:F1}",
+                    PositionChange = $"{liveOrdered.IndexOf(item) - localOrdered.IndexOf(item):+0;-0;-}",
+                    PPChange = $"{item.LocalPP - item.LivePP:+0.0;-0.0}"
+                });
+            }
+
+            var json = JsonConvert.SerializeObject(obj);
+
+            if (!Directory.Exists("players"))
+                Directory.CreateDirectory("players");
+
+            File.WriteAllText(Path.Combine("players", $"{ProfileName}.json"), json);
         }
 
         private dynamic getJsonFromApi(string request)
