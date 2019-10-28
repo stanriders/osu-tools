@@ -95,34 +95,28 @@ namespace PerformanceCalculator.Profile
 
                 var perfCalc = ruleset.CreatePerformanceCalculator(working, score.ScoreInfo);
 
-                // TEMP: mods cant be unserialized unfortunately
-                if (mods.Length == 0)
+                var diffCache = $"cache/{working.BeatmapInfo.OnlineBeatmapID}{string.Join(string.Empty, mods.Select(x => x.Acronym))}_diff.json";
+
+                if (File.Exists(diffCache))
                 {
-                    var diffCache = $"cache/{working.BeatmapInfo.OnlineBeatmapID}{string.Join(string.Empty, mods.Select(x => x.Acronym))}_diff.json";
+                    var userCalcDate = File.GetLastWriteTime(diffCache).ToUniversalTime();
+                    var calcUpdateDate = File.GetLastWriteTime("osu.Game.Rulesets.Osu.dll").ToUniversalTime();
 
-                    if (File.Exists(diffCache))
+                    if (userCalcDate > calcUpdateDate)
                     {
-                        var userCalcDate = File.GetLastWriteTime(diffCache).ToUniversalTime();
-                        var calcUpdateDate = File.GetLastWriteTime("osu.Game.Rulesets.Osu.dll").ToUniversalTime();
-
-                        if (userCalcDate > calcUpdateDate)
-                        {
-                            var file = File.ReadAllText(diffCache);
-                            var attr = JsonConvert.DeserializeObject<OsuDifficultyAttributes>(file);
-                            perfCalc.Attributes = attr;
-                        }
-                        else
-                        {
-                            perfCalc.Attributes = new ProcessorOsuDifficultyCalculator(ruleset, working).Calculate(mods);
-                        }
+                        var file = File.ReadAllText(diffCache);
+                        file = file.Replace("Mods", "nommods"); // stupid hack!!!!!!!!!!
+                        var attr = JsonConvert.DeserializeObject<OsuDifficultyAttributes>(file);
+                        attr.Mods = mods;
+                        perfCalc.Attributes = attr;
                     }
                     else
+                    {
                         perfCalc.Attributes = new ProcessorOsuDifficultyCalculator(ruleset, working).Calculate(mods);
+                    }
                 }
                 else
-                {
-                    perfCalc.Attributes = ruleset.CreateDifficultyCalculator(working).Calculate(mods);
-                }
+                    perfCalc.Attributes = new ProcessorOsuDifficultyCalculator(ruleset, working).Calculate(mods);
 
                 var thisPlay = new UserPlayInfo
                 {
