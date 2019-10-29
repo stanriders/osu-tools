@@ -149,8 +149,8 @@ namespace PerformanceCalculator.Profile
             {
                 UserID = userData.user_id,
                 Username = userData.username,
-                LivePP = $"{totalLivePP:F1} (including {playcountBonusPP:F1}pp from playcount)",
-                LocalPP = $"{totalLocalPP:F1} ({totalDiffPP:+0.0;-0.0;-})",
+                LivePP = FormattableString.Invariant($"{totalLivePP:F1} (including {playcountBonusPP:F1}pp from playcount)"),
+                LocalPP = FormattableString.Invariant($"{totalLocalPP:F1} ({totalDiffPP:+0.0;-0.0;-})"),
                 Beatmaps = new List<ResultBeatmap>()
             };
 
@@ -159,11 +159,11 @@ namespace PerformanceCalculator.Profile
                 var mods = item.Mods == "None" ? string.Empty : item.Mods.Insert(0, "+");
                 obj.Beatmaps.Add(new ResultBeatmap()
                 {
-                    Beatmap = $"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods}",
-                    LivePP = $"{item.LivePP:F1}",
-                    LocalPP = $"{item.LocalPP:F1}",
-                    PositionChange = $"{liveOrdered.IndexOf(item) - localOrdered.IndexOf(item):+0;-0;-}",
-                    PPChange = $"{item.LocalPP - item.LivePP:+0.0;-0.0}"
+                    Beatmap = FormattableString.Invariant($"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods}"),
+                    LivePP = FormattableString.Invariant($"{item.LivePP:F1}"),
+                    LocalPP = FormattableString.Invariant($"{item.LocalPP:F1}"),
+                    PositionChange = FormattableString.Invariant($"{liveOrdered.IndexOf(item) - localOrdered.IndexOf(item):+0;-0;-}"),
+                    PPChange = FormattableString.Invariant($"{item.LocalPP - item.LivePP:+0.0;-0.0}")
                 });
             }
 
