@@ -140,6 +140,10 @@ namespace PerformanceCalculator.Profile
             index = 0;
             double nonBonusLivePP = liveOrdered.Sum(play => Math.Pow(0.95, index++) * play.LivePP);
 
+            // inactive players have 0 pp
+            if (totalLivePP <= 0.0)
+                totalLivePP = nonBonusLivePP;
+
             //todo: implement properly. this is pretty damn wrong.
             var playcountBonusPP = (totalLivePP - nonBonusLivePP);
             totalLocalPP += playcountBonusPP;
