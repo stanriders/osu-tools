@@ -4,12 +4,16 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
 using McMaster.Extensions.CommandLineUtils;
+using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 
@@ -57,34 +61,119 @@ namespace PerformanceCalculator.Simulate
 
             var beatmapMaxCombo = GetMaxCombo(beatmap);
             var maxCombo = Combo ?? (int)Math.Round(PercentCombo / 100 * beatmapMaxCombo);
-            var statistics = GenerateHitResults(Accuracy / 100, beatmap, Misses, Mehs, Goods);
             var score = Score;
-            var accuracy = GetAccuracy(statistics);
 
-            var scoreInfo = new ScoreInfo
+            var mapId = Path.GetFileNameWithoutExtension(Beatmap);
+
+            var diffCache = $"cache/{mapId}{string.Join(string.Empty, mods.Select(x => x.Acronym))}_diff.json";
+
+            DifficultyAttributes attributes;
+
+            if (File.Exists(diffCache))
             {
-                Accuracy = accuracy,
+                var diffCalcDate = File.GetLastWriteTime(diffCache).ToUniversalTime();
+                var calcUpdateDate = File.GetLastWriteTime("osu.Game.Rulesets.Osu.dll").ToUniversalTime();
+
+                if (diffCalcDate > calcUpdateDate)
+                {
+                    var file = File.ReadAllText(diffCache);
+                    file = file.Replace("Mods", "nommods"); // stupid hack!!!!!!!!!!
+                    var attr = JsonConvert.DeserializeObject<OsuDifficultyAttributes>(file);
+                    attr.Mods = mods;
+                    attributes = attr;
+                }
+                else
+                {
+                    attributes = new ProcessorOsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
+                }
+            }
+            else
+                attributes = new ProcessorOsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
+
+            var statistics100 = GenerateHitResults(1, beatmap, 0, null, null);
+            var scoreInfo100 = new ScoreInfo
+            {
+                Accuracy = GetAccuracy(statistics100),
                 MaxCombo = maxCombo,
-                Statistics = statistics,
+                Statistics = statistics100,
                 Mods = mods,
                 TotalScore = score
             };
+            var perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo100);
+            perfCalc.Attributes = attributes;
+            double pp100 = perfCalc.Calculate();
 
-            var categoryAttribs = new Dictionary<string, double>();
-            double pp = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo).Calculate(categoryAttribs);
+            var statistics99 = GenerateHitResults(99.0 / 100, beatmap, 0, null, null);
+            var scoreInfo99 = new ScoreInfo
+            {
+                Accuracy = GetAccuracy(statistics99),
+                MaxCombo = maxCombo,
+                Statistics = statistics99,
+                Mods = mods,
+                TotalScore = score
+            };
+            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo99);
+            perfCalc.Attributes = attributes;
+            double pp99 = perfCalc.Calculate();
 
-            Console.WriteLine(workingBeatmap.BeatmapInfo.ToString());
+            var statistics98 = GenerateHitResults(98.0 / 100, beatmap, 0, null, null);
+            var scoreInfo98 = new ScoreInfo
+            {
+                Accuracy = GetAccuracy(statistics98),
+                MaxCombo = maxCombo,
+                Statistics = statistics98,
+                Mods = mods,
+                TotalScore = score
+            };
+            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo98);
+            perfCalc.Attributes = attributes;
+            double pp98 = perfCalc.Calculate();
 
-            WritePlayInfo(scoreInfo, beatmap);
+            var statistics95 = GenerateHitResults(95.0 / 100, beatmap, 0, null, null);
+            var scoreInfo95 = new ScoreInfo
+            {
+                Accuracy = GetAccuracy(statistics95),
+                MaxCombo = maxCombo,
+                Statistics = statistics95,
+                Mods = mods,
+                TotalScore = score
+            };
+            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo95);
+            perfCalc.Attributes = attributes;
+            double pp95 = perfCalc.Calculate();
 
-            WriteAttribute("Mods", mods.Length > 0
-                ? mods.Select(m => m.Acronym).Aggregate((c, n) => $"{c}, {n}")
-                : "None");
+            var statistics90 = GenerateHitResults(90.0 / 100, beatmap, 0, null, null);
+            var scoreInfo90 = new ScoreInfo
+            {
+                Accuracy = GetAccuracy(statistics90),
+                MaxCombo = maxCombo,
+                Statistics = statistics90,
+                Mods = mods,
+                TotalScore = score
+            };
+            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo90);
+            perfCalc.Attributes = attributes;
+            double pp90 = perfCalc.Calculate();
 
-            foreach (var kvp in categoryAttribs)
-                WriteAttribute(kvp.Key, kvp.Value.ToString(CultureInfo.InvariantCulture));
+            var obj = new
+            {
+                Id = mapId,
+                Title = workingBeatmap.BeatmapInfo.ToString(),
+                PP100 = pp100,
+                PP99 = pp99,
+                PP98 = pp98,
+                PP95 = pp95,
+                PP90 = pp90,
+                Stars = attributes.StarRating,
+                Mods = mods
+            };
 
-            WriteAttribute("pp", pp.ToString(CultureInfo.InvariantCulture));
+            var json = JsonConvert.SerializeObject(obj, new JsonSerializerSettings { Culture = CultureInfo.InvariantCulture });
+
+            if (!Directory.Exists("mapinfo"))
+                Directory.CreateDirectory("mapinfo");
+
+            File.WriteAllText(Path.Combine("mapinfo", $"{mapId}_{string.Join(string.Empty, mods.Select(x => x.Acronym))}.json"), json);
         }
 
         private List<Mod> getMods(Ruleset ruleset)

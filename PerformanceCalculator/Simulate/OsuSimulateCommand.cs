@@ -21,7 +21,7 @@ namespace PerformanceCalculator.Simulate
     public class OsuSimulateCommand : SimulateCommand
     {
         [UsedImplicitly]
-        [Required, FileExists]
+        [Required]
         [Argument(0, Name = "beatmap", Description = "Required. The beatmap file (.osu).")]
         public override string Beatmap { get; }
 
