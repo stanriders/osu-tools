@@ -1,9 +1,11 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.IO;
 using osu.Framework.Audio.Track;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.IO.Network;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Formats;
 
@@ -39,9 +41,21 @@ namespace PerformanceCalculator
 
         private static Beatmap readFromFile(string filename)
         {
-            using (var stream = File.OpenRead(filename))
-            using (var streamReader = new StreamReader(stream))
-                return Decoder.GetDecoder<Beatmap>(streamReader).Decode(streamReader);
+            try
+            {
+                using (var stream = File.OpenRead(filename))
+                using (var streamReader = new StreamReader(stream))
+                    return Decoder.GetDecoder<Beatmap>(streamReader).Decode(streamReader);
+            }
+            catch (Exception)
+            {
+                Console.WriteLine($"Failed to decode {filename}! Redownloading...");
+                new FileWebRequest(filename, $"https://osu.ppy.sh/osu/{Path.GetFileNameWithoutExtension(filename)}").Perform();
+
+                using (var stream = File.OpenRead(filename))
+                using (var streamReader = new StreamReader(stream))
+                    return Decoder.GetDecoder<Beatmap>(streamReader).Decode(streamReader);
+            }
         }
 
         protected override IBeatmap GetBeatmap() => beatmap;
