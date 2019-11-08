@@ -129,6 +129,19 @@ namespace PerformanceCalculator.Simulate
             perfCalc.Attributes = attributes;
             double pp98 = perfCalc.Calculate();
 
+            var statistics975 = GenerateHitResults(97.5 / 100, beatmap, 0, null, null);
+            var scoreInfo975 = new ScoreInfo
+            {
+                Accuracy = GetAccuracy(statistics975),
+                MaxCombo = maxCombo,
+                Statistics = statistics975,
+                Mods = mods,
+                TotalScore = score
+            };
+            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo975);
+            perfCalc.Attributes = attributes;
+            double pp975 = perfCalc.Calculate();
+
             var statistics95 = GenerateHitResults(95.0 / 100, beatmap, 0, null, null);
             var scoreInfo95 = new ScoreInfo
             {
@@ -141,6 +154,19 @@ namespace PerformanceCalculator.Simulate
             perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo95);
             perfCalc.Attributes = attributes;
             double pp95 = perfCalc.Calculate();
+
+            var statistics925 = GenerateHitResults(92.5 / 100, beatmap, 0, null, null);
+            var scoreInfo925 = new ScoreInfo
+            {
+                Accuracy = GetAccuracy(statistics925),
+                MaxCombo = maxCombo,
+                Statistics = statistics925,
+                Mods = mods,
+                TotalScore = score
+            };
+            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo925);
+            perfCalc.Attributes = attributes;
+            double pp925 = perfCalc.Calculate();
 
             var statistics90 = GenerateHitResults(90.0 / 100, beatmap, 0, null, null);
             var scoreInfo90 = new ScoreInfo
@@ -162,7 +188,9 @@ namespace PerformanceCalculator.Simulate
                 PP100 = pp100,
                 PP99 = pp99,
                 PP98 = pp98,
+                PP975 = pp975,
                 PP95 = pp95,
+                PP925 = pp925,
                 PP90 = pp90,
                 Stars = attributes.StarRating,
                 Mods = mods
