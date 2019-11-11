@@ -90,100 +90,18 @@ namespace PerformanceCalculator.Simulate
             else
                 attributes = new ProcessorOsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
 
-            var statistics100 = GenerateHitResults(1, beatmap, 0, null, null);
-            var scoreInfo100 = new ScoreInfo
-            {
-                Accuracy = GetAccuracy(statistics100),
-                MaxCombo = maxCombo,
-                Statistics = statistics100,
-                Mods = mods,
-                TotalScore = score
-            };
-            var perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo100);
-            perfCalc.Attributes = attributes;
-            double pp100 = perfCalc.Calculate();
-
-            var statistics99 = GenerateHitResults(99.0 / 100, beatmap, 0, null, null);
-            var scoreInfo99 = new ScoreInfo
-            {
-                Accuracy = GetAccuracy(statistics99),
-                MaxCombo = maxCombo,
-                Statistics = statistics99,
-                Mods = mods,
-                TotalScore = score
-            };
-            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo99);
-            perfCalc.Attributes = attributes;
-            double pp99 = perfCalc.Calculate();
-
-            var statistics98 = GenerateHitResults(98.0 / 100, beatmap, 0, null, null);
-            var scoreInfo98 = new ScoreInfo
-            {
-                Accuracy = GetAccuracy(statistics98),
-                MaxCombo = maxCombo,
-                Statistics = statistics98,
-                Mods = mods,
-                TotalScore = score
-            };
-            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo98);
-            perfCalc.Attributes = attributes;
-            double pp98 = perfCalc.Calculate();
-
-            var statistics975 = GenerateHitResults(97.5 / 100, beatmap, 0, null, null);
-            var scoreInfo975 = new ScoreInfo
-            {
-                Accuracy = GetAccuracy(statistics975),
-                MaxCombo = maxCombo,
-                Statistics = statistics975,
-                Mods = mods,
-                TotalScore = score
-            };
-            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo975);
-            perfCalc.Attributes = attributes;
-            double pp975 = perfCalc.Calculate();
-
-            var statistics95 = GenerateHitResults(95.0 / 100, beatmap, 0, null, null);
-            var scoreInfo95 = new ScoreInfo
-            {
-                Accuracy = GetAccuracy(statistics95),
-                MaxCombo = maxCombo,
-                Statistics = statistics95,
-                Mods = mods,
-                TotalScore = score
-            };
-            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo95);
-            perfCalc.Attributes = attributes;
-            double pp95 = perfCalc.Calculate();
-
-            var statistics925 = GenerateHitResults(92.5 / 100, beatmap, 0, null, null);
-            var scoreInfo925 = new ScoreInfo
-            {
-                Accuracy = GetAccuracy(statistics925),
-                MaxCombo = maxCombo,
-                Statistics = statistics925,
-                Mods = mods,
-                TotalScore = score
-            };
-            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo925);
-            perfCalc.Attributes = attributes;
-            double pp925 = perfCalc.Calculate();
-
-            var statistics90 = GenerateHitResults(90.0 / 100, beatmap, 0, null, null);
-            var scoreInfo90 = new ScoreInfo
-            {
-                Accuracy = GetAccuracy(statistics90),
-                MaxCombo = maxCombo,
-                Statistics = statistics90,
-                Mods = mods,
-                TotalScore = score
-            };
-            perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo90);
-            perfCalc.Attributes = attributes;
-            double pp90 = perfCalc.Calculate();
+            double pp100 = getPPForAccuracy(100, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp99 = getPPForAccuracy(99, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp98 = getPPForAccuracy(98, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp975 = getPPForAccuracy(97.5, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp95 = getPPForAccuracy(95, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp925 = getPPForAccuracy(92.5, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp90 = getPPForAccuracy(90, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
 
             var obj = new
             {
                 Id = mapId,
+                BeatmapSetId = beatmap.BeatmapInfo.BeatmapSet?.OnlineBeatmapSetID,
                 Title = workingBeatmap.BeatmapInfo.ToString(),
                 PP100 = pp100,
                 PP99 = pp99,
@@ -222,6 +140,22 @@ namespace PerformanceCalculator.Simulate
             }
 
             return mods;
+        }
+
+        private double getPPForAccuracy(double acc, ProcessorWorkingBeatmap workingBeatmap, IBeatmap beatmap, Mod[] mods, int maxCombo, int score, DifficultyAttributes attributes, Ruleset ruleset)
+        {
+            var statistics = GenerateHitResults(acc / 100, beatmap, 0, null, null);
+            var scoreInfo = new ScoreInfo
+            {
+                Accuracy = GetAccuracy(statistics),
+                MaxCombo = maxCombo,
+                Statistics = statistics,
+                Mods = mods,
+                TotalScore = score
+            };
+            var perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo);
+            perfCalc.Attributes = attributes;
+            return perfCalc.Calculate();
         }
 
         protected abstract void WritePlayInfo(ScoreInfo scoreInfo, IBeatmap beatmap);
