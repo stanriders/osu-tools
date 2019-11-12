@@ -91,25 +91,23 @@ namespace PerformanceCalculator.Simulate
                 attributes = new ProcessorOsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
 
             double pp100 = getPPForAccuracy(100, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp99 = getPPForAccuracy(99, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp98 = getPPForAccuracy(98, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp975 = getPPForAccuracy(97.5, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp95 = getPPForAccuracy(95, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp925 = getPPForAccuracy(92.5, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp90 = getPPForAccuracy(90, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp99 =  getPPForAccuracy(99, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp98 =  getPPForAccuracy(98, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp97 =  getPPForAccuracy(97, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp96 =  getPPForAccuracy(96, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp95 =  getPPForAccuracy(95, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp94 =  getPPForAccuracy(94, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp93 =  getPPForAccuracy(93, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp92 =  getPPForAccuracy(92, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp91 =  getPPForAccuracy(91, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            double pp90 =  getPPForAccuracy(90, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
 
             var obj = new
             {
                 Id = mapId,
                 BeatmapSetId = beatmap.BeatmapInfo.BeatmapSet?.OnlineBeatmapSetID,
                 Title = workingBeatmap.BeatmapInfo.ToString(),
-                PP100 = pp100,
-                PP99 = pp99,
-                PP98 = pp98,
-                PP975 = pp975,
-                PP95 = pp95,
-                PP925 = pp925,
-                PP90 = pp90,
+                PP = new [] { pp90, pp91, pp92, pp93, pp94, pp95, pp96, pp97, pp98, pp99, pp100 },
                 Stars = attributes.StarRating,
                 Mods = mods
             };
@@ -155,7 +153,7 @@ namespace PerformanceCalculator.Simulate
             };
             var perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo);
             perfCalc.Attributes = attributes;
-            return perfCalc.Calculate();
+            return Math.Round(perfCalc.Calculate(), 2);
         }
 
         protected abstract void WritePlayInfo(ScoreInfo scoreInfo, IBeatmap beatmap);

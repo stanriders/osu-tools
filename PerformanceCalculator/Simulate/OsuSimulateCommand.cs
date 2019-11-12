@@ -72,18 +72,18 @@ namespace PerformanceCalculator.Simulate
             }
             else
             {
-                // Let Great=6, Good=1, Meh=2, Miss=0. The total should be this.
-                var targetTotal = (int)Math.Round(accuracy * totalResultCount * 6);
+                // Let Great=3, Good=1, Meh=2, Miss=0. The total should be this.
+                var targetTotal = (int)Math.Round(accuracy * totalResultCount * 3);
 
                 // Start by assuming every non miss is a good
                 // This is how much increase is needed by greats and mehs
                 var delta = targetTotal - (totalResultCount - countMiss);
 
                 // Each great increases total by 5 (great-meh=5)
-                countGreat = delta / 5;
-                // Each good increases total by 1 (good-meh=1). Covers remaining difference.
-                countMeh = delta % 5;
-                // Mehs are left over. Could be negative if impossible value of amountMiss chosen
+                countGreat = delta / 2;
+                // Each meh increases total by 1 (good-meh=1). Covers remaining difference.
+                countMeh = delta % 2;
+                // Goods are left over. Could be negative if impossible value of amountMiss chosen
                 countGood = totalResultCount - countGreat - countMeh - countMiss;
             }
 
