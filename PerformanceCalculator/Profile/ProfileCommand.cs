@@ -9,13 +9,16 @@ using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
 using McMaster.Extensions.CommandLineUtils;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using osu.Framework.IO.Network;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty;
+using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
+using osu.Game.Screens.Select;
 
 namespace PerformanceCalculator.Profile
 {
@@ -36,6 +39,10 @@ namespace PerformanceCalculator.Profile
         [Option(Template = "-r|--ruleset:<ruleset-id>", Description = "The ruleset to compute the profile for. 0 - osu!, 1 - osu!taiko, 2 - osu!catch, 3 - osu!mania. Defaults to osu!.")]
         [AllowedValues("0", "1", "2", "3")]
         public int? Ruleset { get; }
+
+        [UsedImplicitly]
+        [Option(Template = "-d", Description = "a")]
+        public bool UseDatabase { get; }
 
         private const string base_url = "https://osu.ppy.sh";
 
@@ -59,9 +66,29 @@ namespace PerformanceCalculator.Profile
 
             Console.WriteLine("Getting user top scores...");
 
-            foreach (var play in getJsonFromApi($"get_user_best?k={Key}&u={ProfileName}&m={Ruleset}&limit=100"))
+            dynamic scores;
+
+            if (UseDatabase)
             {
-                string beatmapID = play.beatmap_id;
+                Console.WriteLine("Loading database...");
+                using (var db = new ScoreDbContext())
+                {
+                    scores = db.osu_scores_high.Where(x => x.user_id == Convert.ToInt32(ProfileName) && x.pp != null).ToArray();
+                }
+            }
+            else
+            {
+                scores = getJsonFromApi($"get_user_best?k={Key}&u={ProfileName}&m={Ruleset}&limit=100");
+            }
+
+            Console.WriteLine("Calculating...");
+            foreach (var play in scores)
+            {
+                string beatmapID;
+                if (UseDatabase)
+                    beatmapID = ((int)play.beatmap_id).ToString();
+                else
+                    beatmapID = play.beatmap_id;
 
                 string cachePath = Path.Combine("cache", $"{beatmapID}.osu");
 
@@ -119,15 +146,53 @@ namespace PerformanceCalculator.Profile
                 else
                     perfCalc.Attributes = new ProcessorOsuDifficultyCalculator(ruleset, working).Calculate(mods);
 
+                var pp = 0.0;
+
+                try
+                {
+                    pp = perfCalc.Calculate();
+                }
+                catch (Exception e)
+                {
+                    System.Console.WriteLine(e);
+                }
+
                 var thisPlay = new UserPlayInfo
                 {
+                    BeatmapId = beatmapID,
                     Beatmap = working.BeatmapInfo,
-                    LocalPP = perfCalc.Calculate(),
-                    LivePP = play.pp,
-                    Mods = mods.Length > 0 ? mods.Select(m => m.Acronym).Aggregate((c, n) => $"{c}, {n}") : "None"
+                    LocalPP = double.IsNormal(pp) ? pp : 0,
+                    LivePP = play.pp ?? 0,
+                    Mods = mods.Length > 0 ? mods.Select(m => m.Acronym).Aggregate((c, n) => $"{c}, {n}") : "None",
+                    Accuracy = Math.Round(score.ScoreInfo.Accuracy * 100, 2).ToString(CultureInfo.InvariantCulture),
+                    Combo = $"{play.maxcombo.ToString()}x"
                 };
 
                 displayPlays.Add(thisPlay);
+            }
+
+            if (UseDatabase)
+            {
+                var scores2 = new List<UserPlayInfo>();
+
+                foreach (var s in displayPlays)
+                {
+                    var beatmapScores = displayPlays.Where(x => x.BeatmapId == s.BeatmapId).OrderByDescending(x => x.LocalPP);
+
+                    if (beatmapScores.Count() > 1)
+                    {
+                        if (!scores2.Any(x => x.BeatmapId == s.BeatmapId))
+                        {
+                            scores2.Add(beatmapScores.First());
+                        }
+                    }
+                    else
+                    {
+                        scores2.Add(s);
+                    }
+                }
+
+                displayPlays = scores2;
             }
 
             var localOrdered = displayPlays.OrderByDescending(p => p.LocalPP).ToList();
@@ -158,12 +223,14 @@ namespace PerformanceCalculator.Profile
                 Beatmaps = new List<ResultBeatmap>()
             };
 
+            localOrdered = localOrdered.Take(1000).ToList();
+
             foreach (var item in localOrdered)
             {
                 var mods = item.Mods == "None" ? string.Empty : item.Mods.Insert(0, "+");
                 obj.Beatmaps.Add(new ResultBeatmap()
                 {
-                    Beatmap = FormattableString.Invariant($"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods}"),
+                    Beatmap = FormattableString.Invariant($"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods} ({item.Accuracy}%, {item.Combo})"),
                     LivePP = FormattableString.Invariant($"{item.LivePP:F1}"),
                     LocalPP = FormattableString.Invariant($"{item.LocalPP:F1}"),
                     PositionChange = FormattableString.Invariant($"{liveOrdered.IndexOf(item) - localOrdered.IndexOf(item):+0;-0;-}"),
@@ -176,7 +243,10 @@ namespace PerformanceCalculator.Profile
             if (!Directory.Exists("players"))
                 Directory.CreateDirectory("players");
 
-            File.WriteAllText(Path.Combine("players", $"{ProfileName}.json"), json);
+            if (UseDatabase)
+                File.WriteAllText(Path.Combine("players", $"{userData.username.ToString().ToLower()}_full.json"), json);
+            else
+                File.WriteAllText(Path.Combine("players", $"{ProfileName}.json"), json);
         }
 
         private dynamic getJsonFromApi(string request)
@@ -186,6 +256,42 @@ namespace PerformanceCalculator.Profile
                 req.Perform();
                 return req.ResponseObject;
             }
+        }
+
+        public class ScoreDbModel
+        {
+            [Key]
+            public int score_id { get; set; }
+            public int beatmap_id { get; set; }
+            public int user_id { get; set; }
+            public int score { get; set; }
+            public int maxcombo { get; set; }
+            public string rank { get; set; }
+            public int count50 { get; set; }
+            public int count100 { get; set; }
+            public int count300 { get; set; }
+            public int countmiss { get; set; }
+            public int countgeki { get; set; }
+            public int countkatu { get; set; }
+            public int perfect { get; set; }
+            public int enabled_mods { get; set; }
+            public DateTime date { get; set; }
+            public double? pp { get; set; }
+            public int replay { get; set; }
+            public int hidden { get; set; }
+            public string country_acronym { get; set; }
+        }
+
+        public class ScoreDbContext : DbContext
+        {
+            private const string connection_string = "Filename=./osu_scores_high.sql.db";
+
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            {
+                optionsBuilder.UseSqlite(connection_string);
+            }
+
+            public DbSet<ScoreDbModel> osu_scores_high { get; set; }
         }
     }
 }
