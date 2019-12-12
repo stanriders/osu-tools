@@ -9,16 +9,14 @@ using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
 using McMaster.Extensions.CommandLineUtils;
-using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using osu.Framework.IO.Network;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Difficulty;
-using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
-using osu.Game.Screens.Select;
 
 namespace PerformanceCalculator.Profile
 {
@@ -36,12 +34,7 @@ namespace PerformanceCalculator.Profile
         public string Key { get; }
 
         [UsedImplicitly]
-        [Option(Template = "-r|--ruleset:<ruleset-id>", Description = "The ruleset to compute the profile for. 0 - osu!, 1 - osu!taiko, 2 - osu!catch, 3 - osu!mania. Defaults to osu!.")]
-        [AllowedValues("0", "1", "2", "3")]
-        public int? Ruleset { get; }
-
-        [UsedImplicitly]
-        [Option(Template = "-d", Description = "a")]
+        [Option(Template = "-d", Description = "Use osu_scores_high.sql.db instead of API for scores")]
         public bool UseDatabase { get; }
 
         private const string base_url = "https://osu.ppy.sh";
@@ -59,10 +52,10 @@ namespace PerformanceCalculator.Profile
         {
             var displayPlays = new List<UserPlayInfo>();
 
-            var ruleset = LegacyHelper.GetRulesetFromLegacyID(Ruleset ?? 0);
+            var ruleset = new OsuRuleset();
 
             Console.WriteLine("Getting user data...");
-            dynamic userData = getJsonFromApi($"get_user?k={Key}&u={ProfileName}&m={Ruleset}")[0];
+            dynamic userData = getJsonFromApi($"get_user?k={Key}&u={ProfileName}")[0];
 
             Console.WriteLine("Getting user top scores...");
 
@@ -78,7 +71,7 @@ namespace PerformanceCalculator.Profile
             }
             else
             {
-                scores = getJsonFromApi($"get_user_best?k={Key}&u={ProfileName}&m={Ruleset}&limit=100");
+                scores = getJsonFromApi($"get_user_best?k={Key}&u={ProfileName}&limit=100");
             }
 
             Console.WriteLine("Calculating...");
