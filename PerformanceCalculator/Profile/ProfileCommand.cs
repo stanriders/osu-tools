@@ -37,6 +37,10 @@ namespace PerformanceCalculator.Profile
         [Option(Template = "-d", Description = "Use osu_scores_high.sql.db instead of API for scores")]
         public bool UseDatabase { get; }
 
+        [UsedImplicitly]
+        [Option(Template = "-s", Description = "Add _suffix to the final file name")]
+        public string Suffix { get; }
+
         private const string base_url = "https://osu.ppy.sh";
 
         class ResultBeatmap
@@ -46,6 +50,9 @@ namespace PerformanceCalculator.Profile
             public string LocalPP { get; set; }
             public string PPChange { get; set; }
             public string PositionChange { get; set; }
+            public string AimPP { get; set; }
+            public string TapPP { get; set; }
+            public string AccPP { get; set; }
         }
 
         public override void Execute()
@@ -140,10 +147,19 @@ namespace PerformanceCalculator.Profile
                     perfCalc.Attributes = new ProcessorOsuDifficultyCalculator(ruleset, working).Calculate(mods);
 
                 var pp = 0.0;
+                var maxCombo = 0.0;
+                var aimPP = 0.0;
+                var tapPP = 0.0;
+                var accPP = 0.0;
+                var categories = new Dictionary<string, double>();
 
                 try
                 {
-                    pp = perfCalc.Calculate();
+                    pp = perfCalc.Calculate(categories);
+                    maxCombo = categories["Max Combo"];
+                    aimPP = categories["Aim"];
+                    tapPP = categories["Tap"];
+                    accPP = categories["Accuracy"];
                 }
                 catch (Exception e)
                 {
@@ -158,7 +174,11 @@ namespace PerformanceCalculator.Profile
                     LivePP = play.pp ?? 0,
                     Mods = mods.Length > 0 ? mods.Select(m => m.Acronym).Aggregate((c, n) => $"{c}, {n}") : "None",
                     Accuracy = Math.Round(score.ScoreInfo.Accuracy * 100, 2).ToString(CultureInfo.InvariantCulture),
-                    Combo = $"{play.maxcombo.ToString()}x"
+                    Combo = $"{play.maxcombo.ToString()}/{maxCombo}x",
+                    Misses = play.countmiss == 0 ? "" : $", {(play.countmiss == 1 ? "miss" : "misses")}",
+                    AimPP = aimPP,
+                    TapPP = tapPP,
+                    AccPP = accPP
                 };
 
                 displayPlays.Add(thisPlay);
@@ -198,8 +218,8 @@ namespace PerformanceCalculator.Profile
             index = 0;
             double nonBonusLivePP = liveOrdered.Sum(play => Math.Pow(0.95, index++) * play.LivePP);
 
-            // inactive players have 0 pp
-            if (totalLivePP <= 0.0)
+            // inactive players have 0 pp and databased profiles are always outdated
+            if (totalLivePP <= 0.0 || UseDatabase)
                 totalLivePP = nonBonusLivePP;
 
             //todo: implement properly. this is pretty damn wrong.
@@ -211,6 +231,7 @@ namespace PerformanceCalculator.Profile
             {
                 UserID = userData.user_id,
                 Username = userData.username,
+                UserCountry = userData.country,
                 LivePP = FormattableString.Invariant($"{totalLivePP:F1} (including {playcountBonusPP:F1}pp from playcount)"),
                 LocalPP = FormattableString.Invariant($"{totalLocalPP:F1} ({totalDiffPP:+0.0;-0.0;-})"),
                 Beatmaps = new List<ResultBeatmap>()
@@ -223,11 +244,14 @@ namespace PerformanceCalculator.Profile
                 var mods = item.Mods == "None" ? string.Empty : item.Mods.Insert(0, "+");
                 obj.Beatmaps.Add(new ResultBeatmap()
                 {
-                    Beatmap = FormattableString.Invariant($"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods} ({item.Accuracy}%, {item.Combo})"),
+                    Beatmap = FormattableString.Invariant($"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods} ({item.Accuracy}%, {item.Combo}{item.Misses})"),
                     LivePP = FormattableString.Invariant($"{item.LivePP:F1}"),
                     LocalPP = FormattableString.Invariant($"{item.LocalPP:F1}"),
                     PositionChange = FormattableString.Invariant($"{liveOrdered.IndexOf(item) - localOrdered.IndexOf(item):+0;-0;-}"),
-                    PPChange = FormattableString.Invariant($"{item.LocalPP - item.LivePP:+0.0;-0.0}")
+                    PPChange = FormattableString.Invariant($"{item.LocalPP - item.LivePP:+0.0;-0.0}"),
+                    AimPP = FormattableString.Invariant($"{item.AimPP:F1}"),
+                    AccPP = FormattableString.Invariant($"{item.AccPP:F1}"),
+                    TapPP = FormattableString.Invariant($"{item.TapPP:F1}")
                 });
             }
 
@@ -238,6 +262,8 @@ namespace PerformanceCalculator.Profile
 
             if (UseDatabase)
                 File.WriteAllText(Path.Combine("players", $"{userData.username.ToString().ToLower()}_full.json"), json);
+            else if (!string.IsNullOrEmpty(Suffix))
+                File.WriteAllText(Path.Combine("players", $"{ProfileName}_{Suffix}.json"), json);
             else
                 File.WriteAllText(Path.Combine("players", $"{ProfileName}.json"), json);
         }
