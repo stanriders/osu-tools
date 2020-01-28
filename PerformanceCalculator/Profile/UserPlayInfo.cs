@@ -12,6 +12,9 @@ namespace PerformanceCalculator.Profile
     {
         public double LocalPP;
         public double LivePP;
+        public double AimPP;
+        public double TapPP;
+        public double AccPP;
 
         public string BeatmapId;
         public BeatmapInfo Beatmap;
@@ -20,5 +23,6 @@ namespace PerformanceCalculator.Profile
 
         public string Accuracy;
         public string Combo;
+        public string Misses;
     }
 }

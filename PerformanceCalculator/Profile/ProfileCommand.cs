@@ -175,7 +175,7 @@ namespace PerformanceCalculator.Profile
                     Mods = mods.Length > 0 ? mods.Select(m => m.Acronym).Aggregate((c, n) => $"{c}, {n}") : "None",
                     Accuracy = Math.Round(score.ScoreInfo.Accuracy * 100, 2).ToString(CultureInfo.InvariantCulture),
                     Combo = $"{play.maxcombo.ToString()}/{maxCombo}x",
-                    Misses = play.countmiss == 0 ? "" : $", {(play.countmiss == 1 ? "miss" : "misses")}",
+                    Misses = play.countmiss == 0 ? "" : $", {play.countmiss} {(play.countmiss == 1 ? "miss" : "misses")}",
                     AimPP = aimPP,
                     TapPP = tapPP,
                     AccPP = accPP
