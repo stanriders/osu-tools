@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using osu.Game.Beatmaps.Legacy;
 
 namespace PerformanceCalculator.Profile
 {
@@ -20,7 +21,7 @@ namespace PerformanceCalculator.Profile
         public int countgeki { get; set; }
         public int countkatu { get; set; }
         public int perfect { get; set; }
-        public int enabled_mods { get; set; }
+        public LegacyMods enabled_mods { get; set; }
         public DateTime date { get; set; }
         public double? pp { get; set; }
         public int replay { get; set; }
