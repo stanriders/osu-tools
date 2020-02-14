@@ -224,6 +224,13 @@ namespace PerformanceCalculator.Profile
 
             //todo: implement properly. this is pretty damn wrong.
             var playcountBonusPP = (totalLivePP - nonBonusLivePP);
+
+            if (UseDatabase)
+            {
+                playcountBonusPP = 416.6667 * (1 - Math.Pow(0.9994, scores.Length));
+                totalLivePP += playcountBonusPP;
+            }
+
             totalLocalPP += playcountBonusPP;
             double totalDiffPP = totalLocalPP - totalLivePP;
 
