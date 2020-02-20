@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
 using McMaster.Extensions.CommandLineUtils;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using osu.Framework.IO.Network;
 using osu.Game.Beatmaps.Legacy;
@@ -17,6 +18,7 @@ using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Difficulty;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
+using PerformanceCalculator.Caching;
 
 namespace PerformanceCalculator.Profile
 {
@@ -71,9 +73,13 @@ namespace PerformanceCalculator.Profile
             if (UseDatabase)
             {
                 Console.WriteLine("Loading database...");
+
                 using (var db = new ScoreDbContext())
                 {
-                    scores = db.osu_scores_high.Where(x => x.user_id == Convert.ToInt32(ProfileName) && x.pp != null).ToArray();
+                    scores = db.osu_scores_high.Where(x => x.user_id == Convert.ToInt32(ProfileName) &&
+                                                           x.pp != null &&
+                                                           x.pp != 0.0 &&
+                                                           x.hidden == 0).ToArray();
                 }
             }
             else
@@ -82,106 +88,141 @@ namespace PerformanceCalculator.Profile
             }
 
             Console.WriteLine("Calculating...");
-            foreach (var play in scores)
+
+            using (var diffDb = new DifficultyAttributeCacheContext())
             {
-                string beatmapID;
-                if (UseDatabase)
-                    beatmapID = ((int)play.beatmap_id).ToString();
-                else
-                    beatmapID = play.beatmap_id;
-
-                string cachePath = Path.Combine("cache", $"{beatmapID}.osu");
-
-                if (!File.Exists(cachePath))
+                foreach (var play in scores)
                 {
-                    Console.WriteLine($"Downloading {beatmapID}.osu...");
-                    new FileWebRequest(cachePath, $"{base_url}/osu/{beatmapID}").Perform();
-                }
-
-                Mod[] mods = ruleset.ConvertLegacyMods((LegacyMods)play.enabled_mods).ToArray();
-
-                if (new FileInfo(cachePath).Length <= 0)
-                    continue;
-
-                var working = new ProcessorWorkingBeatmap(cachePath, (int)play.beatmap_id);
-
-                var score = new ProcessorScoreParser(working).Parse(new ScoreInfo
-                {
-                    Ruleset = ruleset.RulesetInfo,
-                    MaxCombo = play.maxcombo,
-                    Mods = mods,
-                    Statistics = new Dictionary<HitResult, int>
-                    {
-                        { HitResult.Perfect, (int)play.countgeki },
-                        { HitResult.Great, (int)play.count300 },
-                        { HitResult.Good, (int)play.count100 },
-                        { HitResult.Ok, (int)play.countkatu },
-                        { HitResult.Meh, (int)play.count50 },
-                        { HitResult.Miss, (int)play.countmiss }
-                    }
-                });
-
-                var perfCalc = ruleset.CreatePerformanceCalculator(working, score.ScoreInfo);
-
-                var diffCache = $"cache/{working.BeatmapInfo.OnlineBeatmapID}{string.Join(string.Empty, mods.Select(x => x.Acronym))}_diff.json";
-
-                if (File.Exists(diffCache))
-                {
-                    var userCalcDate = File.GetLastWriteTime(diffCache).ToUniversalTime();
-                    var calcUpdateDate = File.GetLastWriteTime("osu.Game.Rulesets.Osu.dll").ToUniversalTime();
-
-                    if (userCalcDate > calcUpdateDate)
-                    {
-                        var file = File.ReadAllText(diffCache);
-                        file = file.Replace("Mods", "nommods"); // stupid hack!!!!!!!!!!
-                        var attr = JsonConvert.DeserializeObject<OsuDifficultyAttributes>(file);
-                        attr.Mods = mods;
-                        perfCalc.Attributes = attr;
-                    }
+                    string beatmapID;
+                    if (UseDatabase)
+                        beatmapID = ((int)play.beatmap_id).ToString();
                     else
+                        beatmapID = play.beatmap_id;
+
+                    string cachePath = Path.Combine("cache", $"{beatmapID}.osu");
+
+                    if (!File.Exists(cachePath))
                     {
-                        perfCalc.Attributes = new ProcessorOsuDifficultyCalculator(ruleset, working).Calculate(mods);
+                        Console.WriteLine($"Downloading {beatmapID}.osu...");
+                        new FileWebRequest(cachePath, $"{base_url}/osu/{beatmapID}").Perform();
                     }
+
+                    LegacyMods legacyMods = play.enabled_mods;
+                    Mod[] mods = ruleset.ConvertLegacyMods(legacyMods).ToArray();
+
+                    if (new FileInfo(cachePath).Length <= 0)
+                        continue;
+
+                    var working = new ProcessorWorkingBeatmap(cachePath, (int)play.beatmap_id);
+
+                    var score = new ProcessorScoreParser(working).Parse(new ScoreInfo
+                    {
+                        Ruleset = ruleset.RulesetInfo,
+                        MaxCombo = play.maxcombo,
+                        Mods = mods,
+                        Statistics = new Dictionary<HitResult, int>
+                        {
+                            { HitResult.Perfect, (int)play.countgeki },
+                            { HitResult.Great, (int)play.count300 },
+                            { HitResult.Good, (int)play.count100 },
+                            { HitResult.Ok, (int)play.countkatu },
+                            { HitResult.Meh, (int)play.count50 },
+                            { HitResult.Miss, (int)play.countmiss }
+                        }
+                    });
+
+                    var perfCalc = ruleset.CreatePerformanceCalculator(working, score.ScoreInfo);
+
+                    try
+                    {
+                        if (working.BeatmapInfo.OnlineBeatmapID != null && working.BeatmapInfo.OnlineBeatmapID > 0)
+                        {
+                            var diffAttributes = diffDb.Attributes.SingleOrDefault(x => x.MapId == working.BeatmapInfo.OnlineBeatmapID && x.Mods == legacyMods);
+
+                            if (diffAttributes != null)
+                            {
+                                var calcUpdateDate = File.GetLastWriteTime("osu.Game.Rulesets.Osu.dll").ToUniversalTime();
+
+                                if (diffAttributes.UpdateDate > calcUpdateDate)
+                                {
+                                    perfCalc.Attributes = diffAttributes.ToOsuDifficultyAttributes();
+                                }
+                                else
+                                {
+                                    var newAttr = (OsuDifficultyAttributes)new OsuDifficultyCalculator(ruleset, working).Calculate(mods);
+                                    perfCalc.Attributes = newAttr;
+                                    diffAttributes.MapId = working.BeatmapInfo.OnlineBeatmapID ?? 0;
+                                    diffAttributes.UpdateDate = DateTime.Now.ToUniversalTime();
+                                    diffAttributes.Mods = legacyMods;
+                                    diffAttributes.FromOsuDifficultyAttributes(newAttr);
+                                }
+                            }
+                            else
+                            {
+                                var newAttr = (OsuDifficultyAttributes)new OsuDifficultyCalculator(ruleset, working).Calculate(mods);
+                                perfCalc.Attributes = newAttr;
+                                var newdiff = new DiffAttributesDbModel
+                                {
+                                    MapId = working.BeatmapInfo.OnlineBeatmapID ?? 0,
+                                    UpdateDate = DateTime.Now.ToUniversalTime(),
+                                    Mods = legacyMods
+                                };
+                                newdiff.FromOsuDifficultyAttributes(newAttr);
+                                diffDb.Attributes.Add(newdiff);
+                            }
+                        }
+                        else
+                        {
+                            // maps without online id cant be cached properly so dont bother
+                            perfCalc.Attributes = new OsuDifficultyCalculator(ruleset, working).Calculate(mods);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        // if we somehow failed on db interaction - ignore and calculate manually
+                        perfCalc.Attributes = new OsuDifficultyCalculator(ruleset, working).Calculate(mods);
+                        Console.WriteLine(e);
+                    }
+
+                    var pp = 0.0;
+                    var maxCombo = 0.0;
+                    var aimPP = 0.0;
+                    var tapPP = 0.0;
+                    var accPP = 0.0;
+                    var categories = new Dictionary<string, double>();
+
+                    try
+                    {
+                        pp = perfCalc.Calculate(categories);
+                        maxCombo = categories["Max Combo"];
+                        aimPP = categories["Aim"];
+                        tapPP = categories["Tap"];
+                        accPP = categories["Accuracy"];
+                    }
+                    catch (Exception e)
+                    {
+                        System.Console.WriteLine(e);
+                    }
+
+                    var thisPlay = new UserPlayInfo
+                    {
+                        BeatmapId = beatmapID,
+                        Beatmap = working.BeatmapInfo,
+                        LocalPP = double.IsNormal(pp) ? pp : 0,
+                        LivePP = play.pp ?? 0,
+                        Mods = mods.Length > 0 ? mods.Select(m => m.Acronym).Aggregate((c, n) => $"{c}, {n}") : "None",
+                        Accuracy = Math.Round(score.ScoreInfo.Accuracy * 100, 2).ToString(CultureInfo.InvariantCulture),
+                        Combo = $"{play.maxcombo.ToString()}/{maxCombo}x",
+                        Misses = play.countmiss == 0 ? "" : $", {play.countmiss} {(play.countmiss == 1 ? "miss" : "misses")}",
+                        AimPP = aimPP,
+                        TapPP = tapPP,
+                        AccPP = accPP
+                    };
+
+                    displayPlays.Add(thisPlay);
                 }
-                else
-                    perfCalc.Attributes = new ProcessorOsuDifficultyCalculator(ruleset, working).Calculate(mods);
 
-                var pp = 0.0;
-                var maxCombo = 0.0;
-                var aimPP = 0.0;
-                var tapPP = 0.0;
-                var accPP = 0.0;
-                var categories = new Dictionary<string, double>();
-
-                try
-                {
-                    pp = perfCalc.Calculate(categories);
-                    maxCombo = categories["Max Combo"];
-                    aimPP = categories["Aim"];
-                    tapPP = categories["Tap"];
-                    accPP = categories["Accuracy"];
-                }
-                catch (Exception e)
-                {
-                    System.Console.WriteLine(e);
-                }
-
-                var thisPlay = new UserPlayInfo
-                {
-                    BeatmapId = beatmapID,
-                    Beatmap = working.BeatmapInfo,
-                    LocalPP = double.IsNormal(pp) ? pp : 0,
-                    LivePP = play.pp ?? 0,
-                    Mods = mods.Length > 0 ? mods.Select(m => m.Acronym).Aggregate((c, n) => $"{c}, {n}") : "None",
-                    Accuracy = Math.Round(score.ScoreInfo.Accuracy * 100, 2).ToString(CultureInfo.InvariantCulture),
-                    Combo = $"{play.maxcombo.ToString()}/{maxCombo}x",
-                    Misses = play.countmiss == 0 ? "" : $", {play.countmiss} {(play.countmiss == 1 ? "miss" : "misses")}",
-                    AimPP = aimPP,
-                    TapPP = tapPP,
-                    AccPP = accPP
-                };
-
-                displayPlays.Add(thisPlay);
+                diffDb.SaveChanges();
             }
 
             if (UseDatabase)

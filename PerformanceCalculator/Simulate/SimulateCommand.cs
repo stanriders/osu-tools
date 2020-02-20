@@ -10,12 +10,15 @@ using JetBrains.Annotations;
 using McMaster.Extensions.CommandLineUtils;
 using Newtonsoft.Json;
 using osu.Game.Beatmaps;
+using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty;
+using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
+using PerformanceCalculator.Caching;
 
 namespace PerformanceCalculator.Simulate
 {
@@ -65,30 +68,62 @@ namespace PerformanceCalculator.Simulate
 
             var mapId = Path.GetFileNameWithoutExtension(Beatmap);
 
-            var diffCache = $"cache/{mapId}{string.Join(string.Empty, mods.Select(x => x.Acronym))}_diff.json";
-
             DifficultyAttributes attributes;
 
-            if (File.Exists(diffCache))
+            using (var diffDb = new DifficultyAttributeCacheContext())
             {
-                var diffCalcDate = File.GetLastWriteTime(diffCache).ToUniversalTime();
-                var calcUpdateDate = File.GetLastWriteTime("osu.Game.Rulesets.Osu.dll").ToUniversalTime();
+                try
+                {
+                    if (workingBeatmap.BeatmapInfo.OnlineBeatmapID != null && workingBeatmap.BeatmapInfo.OnlineBeatmapID > 0)
+                    {
+                        var diffAttributes = diffDb.Attributes.SingleOrDefault(x => x.MapId == workingBeatmap.BeatmapInfo.OnlineBeatmapID && x.Mods == convertToLegacyMods(mods));
 
-                if (diffCalcDate > calcUpdateDate)
-                {
-                    var file = File.ReadAllText(diffCache);
-                    file = file.Replace("Mods", "nommods"); // stupid hack!!!!!!!!!!
-                    var attr = JsonConvert.DeserializeObject<OsuDifficultyAttributes>(file);
-                    attr.Mods = mods;
-                    attributes = attr;
+                        if (diffAttributes != null)
+                        {
+                            var calcUpdateDate = File.GetLastWriteTime("osu.Game.Rulesets.Osu.dll").ToUniversalTime();
+
+                            if (diffAttributes.UpdateDate > calcUpdateDate)
+                            {
+                                attributes = diffAttributes.ToOsuDifficultyAttributes();
+                            }
+                            else
+                            {
+                                var newAttr = (OsuDifficultyAttributes)new OsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
+                                attributes = newAttr;
+                                diffAttributes.MapId = workingBeatmap.BeatmapInfo.OnlineBeatmapID ?? 0;
+                                diffAttributes.UpdateDate = DateTime.Now.ToUniversalTime();
+                                diffAttributes.Mods = convertToLegacyMods(mods);
+                                diffAttributes.FromOsuDifficultyAttributes(newAttr);
+                            }
+                        }
+                        else
+                        {
+                            var newAttr = (OsuDifficultyAttributes)new OsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
+                            attributes = newAttr;
+                            var newdiff = new DiffAttributesDbModel
+                            {
+                                MapId = workingBeatmap.BeatmapInfo.OnlineBeatmapID ?? 0,
+                                UpdateDate = DateTime.Now.ToUniversalTime(),
+                                Mods = convertToLegacyMods(mods)
+                            };
+                            newdiff.FromOsuDifficultyAttributes(newAttr);
+                            diffDb.Attributes.Add(newdiff);
+                        }
+                    }
+                    else
+                    {
+                        // maps without online id cant be cached properly so dont bother
+                        attributes = new OsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    attributes = new ProcessorOsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
+                    // if we somehow failed on db interaction - ignore and calculate manually
+                    attributes = new OsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
+                    Console.WriteLine(e);
                 }
+                diffDb.SaveChanges();
             }
-            else
-                attributes = new ProcessorOsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
 
             double pp100 = getPPForAccuracy(100, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
             double pp99 =  getPPForAccuracy(99, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
@@ -138,6 +173,41 @@ namespace PerformanceCalculator.Simulate
             }
 
             return mods;
+        }
+
+        private LegacyMods convertToLegacyMods(IEnumerable<Mod> mods)
+        {
+            var flags = LegacyMods.None;
+
+            foreach (var mod in mods)
+            {
+                if (mod is OsuModNightcore)
+                    flags |= LegacyMods.Nightcore | LegacyMods.DoubleTime;
+                if (mod is OsuModDoubleTime)
+                    flags |= LegacyMods.DoubleTime;
+                if (mod is OsuModEasy)
+                    flags |= LegacyMods.Easy;
+                if (mod is OsuModFlashlight)
+                    flags |= LegacyMods.Flashlight;
+                if (mod is OsuModHalfTime)
+                    flags |= LegacyMods.HalfTime;
+                if (mod is OsuModHardRock)
+                    flags |= LegacyMods.HardRock;
+                if (mod is OsuModHidden)
+                    flags |= LegacyMods.Hidden;
+                if (mod is OsuModNoFail)
+                    flags |= LegacyMods.NoFail;
+                if (mod is OsuModPerfect)
+                    flags |= LegacyMods.Perfect | LegacyMods.SuddenDeath;
+                if (mod is OsuModSpunOut)
+                    flags |= LegacyMods.SpunOut;
+                if (mod is OsuModSuddenDeath)
+                    flags |= LegacyMods.SuddenDeath;
+                if (mod is OsuModTouchDevice)
+                    flags |= LegacyMods.TouchDevice;
+            }
+
+            return flags;
         }
 
         private double getPPForAccuracy(double acc, ProcessorWorkingBeatmap workingBeatmap, IBeatmap beatmap, Mod[] mods, int maxCombo, int score, DifficultyAttributes attributes, Ruleset ruleset)
