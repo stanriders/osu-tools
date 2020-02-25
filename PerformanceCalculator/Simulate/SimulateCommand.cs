@@ -125,17 +125,17 @@ namespace PerformanceCalculator.Simulate
                 diffDb.SaveChanges();
             }
 
-            double pp100 = getPPForAccuracy(100, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp99 =  getPPForAccuracy(99, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp98 =  getPPForAccuracy(98, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp97 =  getPPForAccuracy(97, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp96 =  getPPForAccuracy(96, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp95 =  getPPForAccuracy(95, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp94 =  getPPForAccuracy(94, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp93 =  getPPForAccuracy(93, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp92 =  getPPForAccuracy(92, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp91 =  getPPForAccuracy(91, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            double pp90 =  getPPForAccuracy(90, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp100, var aimpp100, var tappp100, var accpp100) = getPPForAccuracy(100, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp99, var aimpp99, var tappp99, var accpp99) =  getPPForAccuracy(99, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp98, var aimpp98, var tappp98, var accpp98) =  getPPForAccuracy(98, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp97, var aimpp97, var tappp97, var accpp97) =  getPPForAccuracy(97, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp96, var aimpp96, var tappp96, var accpp96) =  getPPForAccuracy(96, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp95, var aimpp95, var tappp95, var accpp95) =  getPPForAccuracy(95, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp94, var aimpp94, var tappp94, var accpp94) =  getPPForAccuracy(94, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp93, var aimpp93, var tappp93, var accpp93) =  getPPForAccuracy(93, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp92, var aimpp92, var tappp92, var accpp92) =  getPPForAccuracy(92, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp91, var aimpp91, var tappp91, var accpp91) =  getPPForAccuracy(91, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            (double pp90, var aimpp90, var tappp90, var accpp90) =  getPPForAccuracy(90, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
 
             var obj = new
             {
@@ -143,6 +143,9 @@ namespace PerformanceCalculator.Simulate
                 BeatmapSetId = beatmap.BeatmapInfo.BeatmapSet?.OnlineBeatmapSetID,
                 Title = workingBeatmap.BeatmapInfo.ToString(),
                 PP = new [] { pp90, pp91, pp92, pp93, pp94, pp95, pp96, pp97, pp98, pp99, pp100 },
+                AimPP = new[] { aimpp90, aimpp91, aimpp92, aimpp93, aimpp94, aimpp95, aimpp96, aimpp97, aimpp98, aimpp99, aimpp100 },
+                TapPP = new[] { tappp90, tappp91, tappp92, tappp93, tappp94, tappp95, tappp96, tappp97, tappp98, tappp99, tappp100 },
+                AccPP = new[] { accpp90, accpp91, accpp92, accpp93, accpp94, accpp95, accpp96, accpp97, accpp98, accpp99, accpp100 },
                 Stars = attributes.StarRating,
                 Mods = mods
             };
@@ -210,7 +213,7 @@ namespace PerformanceCalculator.Simulate
             return flags;
         }
 
-        private double getPPForAccuracy(double acc, ProcessorWorkingBeatmap workingBeatmap, IBeatmap beatmap, Mod[] mods, int maxCombo, int score, DifficultyAttributes attributes, Ruleset ruleset)
+        private (double, double, double, double) getPPForAccuracy(double acc, ProcessorWorkingBeatmap workingBeatmap, IBeatmap beatmap, Mod[] mods, int maxCombo, int score, DifficultyAttributes attributes, Ruleset ruleset)
         {
             var statistics = GenerateHitResults(acc / 100, beatmap, 0, null, null);
             var scoreInfo = new ScoreInfo
@@ -223,7 +226,9 @@ namespace PerformanceCalculator.Simulate
             };
             var perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo);
             perfCalc.Attributes = attributes;
-            return Math.Round(perfCalc.Calculate(), 2);
+            var diffCats = new Dictionary<string, double>();
+            var pp = perfCalc.Calculate(diffCats);
+            return (Math.Round(pp, 2), Math.Round(diffCats["Aim"], 2), Math.Round(diffCats["Tap"], 2), Math.Round(diffCats["Accuracy"], 2));
         }
 
         protected abstract void WritePlayInfo(ScoreInfo scoreInfo, IBeatmap beatmap);
