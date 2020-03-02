@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
@@ -9,7 +10,6 @@ using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
 using McMaster.Extensions.CommandLineUtils;
-using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using osu.Framework.IO.Network;
 using osu.Game.Beatmaps.Legacy;
@@ -64,11 +64,11 @@ namespace PerformanceCalculator.Profile
             var ruleset = new OsuRuleset();
 
             Console.WriteLine("Getting user data...");
-            dynamic userData = getJsonFromApi($"get_user?k={Key}&u={ProfileName}")[0];
+            dynamic userData = getJsonFromApi<dynamic>($"get_user?k={Key}&u={ProfileName}")[0];
 
             Console.WriteLine("Getting user top scores...");
 
-            dynamic scores;
+            ScoreDbModel[] scores;
 
             if (UseDatabase)
             {
@@ -84,7 +84,7 @@ namespace PerformanceCalculator.Profile
             }
             else
             {
-                scores = getJsonFromApi($"get_user_best?k={Key}&u={ProfileName}&limit=100");
+                scores = getJsonFromApi<ScoreDbModel[]>($"get_user_best?k={Key}&u={ProfileName}&limit=100");
             }
 
             Console.WriteLine("Calculating...");
@@ -93,11 +93,7 @@ namespace PerformanceCalculator.Profile
             {
                 foreach (var play in scores)
                 {
-                    string beatmapID;
-                    if (UseDatabase)
-                        beatmapID = ((int)play.beatmap_id).ToString();
-                    else
-                        beatmapID = play.beatmap_id;
+                    string beatmapID = ((int)play.beatmap_id).ToString();
 
                     string cachePath = Path.Combine("cache", $"{beatmapID}.osu");
 
@@ -222,7 +218,16 @@ namespace PerformanceCalculator.Profile
                     displayPlays.Add(thisPlay);
                 }
 
-                diffDb.SaveChanges();
+                try
+                {
+                    diffDb.SaveChanges();
+                }
+                catch (Exception e)
+                {
+                    // dont fail if we cant save attributes - results are more important than caching
+                    Console.WriteLine("Failed to write diff attributes!");
+                    Console.WriteLine(e);
+                }
             }
 
             if (UseDatabase)
@@ -316,9 +321,9 @@ namespace PerformanceCalculator.Profile
                 File.WriteAllText(Path.Combine("players", $"{ProfileName}.json"), json);
         }
 
-        private dynamic getJsonFromApi(string request)
+        private T getJsonFromApi<T>(string request)
         {
-            using (var req = new JsonWebRequest<dynamic>($"{base_url}/api/{request}"))
+            using (var req = new JsonWebRequest<T>($"{base_url}/api/{request}"))
             {
                 req.Perform();
                 return req.ResponseObject;

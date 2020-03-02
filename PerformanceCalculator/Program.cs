@@ -1,6 +1,8 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Globalization;
+using System.Threading;
 using McMaster.Extensions.CommandLineUtils;
 using osu.Framework.Logging;
 using osu.Game.Beatmaps.Formats;
@@ -21,6 +23,7 @@ namespace PerformanceCalculator
     {
         public static void Main(string[] args)
         {
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US", false);
             LegacyDifficultyCalculatorBeatmapDecoder.Register();
 
             Logger.Enabled = false;

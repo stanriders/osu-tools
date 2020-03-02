@@ -8,10 +8,10 @@ namespace PerformanceCalculator.Profile
     public class ScoreDbModel
     {
         [Key]
-        public int score_id { get; set; }
-        public int beatmap_id { get; set; }
-        public int user_id { get; set; }
-        public int score { get; set; }
+        public long score_id { get; set; }
+        public long beatmap_id { get; set; }
+        public long user_id { get; set; }
+        public long score { get; set; }
         public int maxcombo { get; set; }
         public string rank { get; set; }
         public int count50 { get; set; }
