@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
@@ -45,7 +44,7 @@ namespace PerformanceCalculator.Profile
 
         private const string base_url = "https://osu.ppy.sh";
 
-        class ResultBeatmap
+        private class ResultBeatmap
         {
             public string Beatmap { get; set; }
             public string LivePP { get; set; }
@@ -234,21 +233,12 @@ namespace PerformanceCalculator.Profile
             {
                 var scores2 = new List<UserPlayInfo>();
 
-                foreach (var s in displayPlays)
-                {
-                    var beatmapScores = displayPlays.Where(x => x.BeatmapId == s.BeatmapId).OrderByDescending(x => x.LocalPP);
+                var maps = displayPlays.Select(x => x.BeatmapId).Distinct();
 
-                    if (beatmapScores.Count() > 1)
-                    {
-                        if (!scores2.Any(x => x.BeatmapId == s.BeatmapId))
-                        {
-                            scores2.Add(beatmapScores.First());
-                        }
-                    }
-                    else
-                    {
-                        scores2.Add(s);
-                    }
+                foreach (var map in maps)
+                {
+                    // if there're multiple scores on one map use play with bigger local pp value
+                    scores2.Add(displayPlays.Where(x => x.BeatmapId == map).OrderByDescending(x => x.LocalPP).First());
                 }
 
                 displayPlays = scores2;
@@ -290,7 +280,8 @@ namespace PerformanceCalculator.Profile
                 Beatmaps = new List<ResultBeatmap>()
             };
 
-            localOrdered = localOrdered.Take(1000).ToList();
+            const int score_amt = 1000;
+            localOrdered = localOrdered.Take(score_amt).ToList();
 
             foreach (var item in localOrdered)
             {
@@ -313,12 +304,15 @@ namespace PerformanceCalculator.Profile
             if (!Directory.Exists("players"))
                 Directory.CreateDirectory("players");
 
+            var filename = ProfileName;
+
             if (UseDatabase)
-                File.WriteAllText(Path.Combine("players", $"{userData.username.ToString().ToLower()}_full.json"), json);
-            else if (!string.IsNullOrEmpty(Suffix))
-                File.WriteAllText(Path.Combine("players", $"{ProfileName}_{Suffix}.json"), json);
-            else
-                File.WriteAllText(Path.Combine("players", $"{ProfileName}.json"), json);
+                filename = $"{userData.username.ToString().ToLower()}_full";
+
+            if (!string.IsNullOrEmpty(Suffix))
+                filename += $"_{Suffix}";
+
+            File.WriteAllText(Path.Combine("players", $"{filename}.json"), json);
         }
 
         private T getJsonFromApi<T>(string request)
