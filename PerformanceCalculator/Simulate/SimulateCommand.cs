@@ -16,6 +16,7 @@ using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Difficulty;
 using osu.Game.Rulesets.Osu.Mods;
+using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using PerformanceCalculator.Caching;
@@ -52,6 +53,34 @@ namespace PerformanceCalculator.Simulate
         [UsedImplicitly]
         public virtual int? Goods { get; }
 
+        private class ComboGraph
+        {
+            [JsonProperty("x")]
+            public double Time { get; set; }
+
+            [JsonProperty("y")]
+            public double PP { get; set; }
+        }
+
+        private class OsuHitObjectWithCombo : OsuHitObject
+        {
+            public long Combo { get; set; }
+
+            public Type OriginalType { get; set; }
+
+            public override string ToString() => $"{Combo}({StartTime}) - {OriginalType.Name}";
+
+            public OsuHitObjectWithCombo(OsuHitObject o)
+            {
+                ComboOffset = o.ComboOffset;
+                ComboIndex = o.ComboIndex;
+                StartTime = o.StartTime;
+                IndexInCurrentCombo = o.IndexInCurrentCombo;
+
+                OriginalType = o.GetType();
+            }
+        }
+
         public override void Execute()
         {
             var ruleset = Ruleset;
@@ -68,7 +97,7 @@ namespace PerformanceCalculator.Simulate
 
             var mapId = Path.GetFileNameWithoutExtension(Beatmap);
 
-            DifficultyAttributes attributes;
+            OsuDifficultyAttributes attributes;
 
             using (var diffDb = new DifficultyAttributeCacheContext())
             {
@@ -113,15 +142,16 @@ namespace PerformanceCalculator.Simulate
                     else
                     {
                         // maps without online id cant be cached properly so dont bother
-                        attributes = new OsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
+                        attributes = (OsuDifficultyAttributes)new OsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
                     }
                 }
                 catch (Exception e)
                 {
                     // if we somehow failed on db interaction - ignore and calculate manually
-                    attributes = new OsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
+                    attributes = (OsuDifficultyAttributes)new OsuDifficultyCalculator(ruleset, workingBeatmap).Calculate(mods);
                     Console.WriteLine(e);
                 }
+
                 diffDb.SaveChanges();
             }
 
@@ -137,6 +167,54 @@ namespace PerformanceCalculator.Simulate
             (double pp91, var aimpp91, var tappp91, var accpp91) =  getPPForAccuracy(91, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
             (double pp90, var aimpp90, var tappp90, var accpp90) =  getPPForAccuracy(90, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
 
+            var misspp = new List<ComboGraph>();
+
+            var objects = beatmap.HitObjects.Select(x => new OsuHitObjectWithCombo((OsuHitObject)x)).ToList();
+            
+            foreach (var c in beatmap.HitObjects)
+            {
+                if (c.NestedHitObjects.Count > 0)
+                    foreach (var nestedObj in c.NestedHitObjects)
+                        if (nestedObj is SliderTailCircle || nestedObj is RepeatPoint || nestedObj is SliderTick)
+                            objects.Add(new OsuHitObjectWithCombo((OsuHitObject)nestedObj));
+            }
+
+            objects = objects.OrderBy(x => x.StartTime).ToList();
+
+            for (int i = 0; i < objects.Count; i++)
+                objects[i].Combo = i + 1;
+
+            while (objects[objects.Count - 1].OriginalType == typeof(SliderTailCircle)
+                   || objects[objects.Count - 1].OriginalType == typeof(SliderTick)
+                   || objects[objects.Count - 1].OriginalType == typeof(RepeatPoint))
+            {
+                // remove ending slider parts to match aimprob graph time scale
+                objects.RemoveAt(objects.Count - 1);
+            }
+
+            var comboFrequency = Math.Max(beatmapMaxCombo / 200, 1);
+
+            for (int i = 1; i <= beatmapMaxCombo; i += comboFrequency)
+            {
+                var objTime = objects.FirstOrDefault(x => x.Combo == i)?.StartTime;
+
+                if (i >= objects.Count)
+                    objTime = objects.Last().StartTime;
+
+                if (objTime != null)
+                {
+                    double pp = getPPForCombo(workingBeatmap, beatmap, mods, i, score, attributes, ruleset);
+                    misspp.Add(new ComboGraph
+                    {
+                        PP = pp,
+                        Time = (double)(objTime / 1000)
+                    });
+                }
+
+                if (i >= objects.Count)
+                    break;
+            }
+
             var obj = new
             {
                 Id = mapId,
@@ -146,7 +224,11 @@ namespace PerformanceCalculator.Simulate
                 AimPP = new[] { aimpp90, aimpp91, aimpp92, aimpp93, aimpp94, aimpp95, aimpp96, aimpp97, aimpp98, aimpp99, aimpp100 },
                 TapPP = new[] { tappp90, tappp91, tappp92, tappp93, tappp94, tappp95, tappp96, tappp97, tappp98, tappp99, tappp100 },
                 AccPP = new[] { accpp90, accpp91, accpp92, accpp93, accpp94, accpp95, accpp96, accpp97, accpp98, accpp99, accpp100 },
+                MissPP = misspp,
                 Stars = attributes.StarRating,
+                AimSR = attributes.AimSR,
+                TapSR = attributes.TapSR,
+                FingerControlSR = attributes.FingerControlSR,
                 Mods = mods
             };
 
@@ -229,6 +311,22 @@ namespace PerformanceCalculator.Simulate
             var diffCats = new Dictionary<string, double>();
             var pp = perfCalc.Calculate(diffCats);
             return (Math.Round(pp, 2), Math.Round(diffCats["Aim"], 2), Math.Round(diffCats["Tap"], 2), Math.Round(diffCats["Accuracy"], 2));
+        }
+
+        private double getPPForCombo(ProcessorWorkingBeatmap workingBeatmap, IBeatmap beatmap, Mod[] mods, int maxCombo, int score, DifficultyAttributes attributes, Ruleset ruleset, int misses = 0)
+        {
+            var statistics = GenerateHitResults(1, beatmap, misses, null, null);
+            var scoreInfo = new ScoreInfo
+            {
+                Accuracy = GetAccuracy(statistics),
+                MaxCombo = maxCombo,
+                Statistics = statistics,
+                Mods = mods,
+                TotalScore = score
+            };
+            var perfCalc = ruleset.CreatePerformanceCalculator(workingBeatmap, scoreInfo);
+            perfCalc.Attributes = attributes;
+            return Math.Round(perfCalc.Calculate(), 2);
         }
 
         protected abstract void WritePlayInfo(ScoreInfo scoreInfo, IBeatmap beatmap);
