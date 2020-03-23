@@ -42,13 +42,28 @@ namespace PerformanceCalculator.Profile
         [Option(Template = "-s", Description = "Add _suffix to the final file name")]
         public string Suffix { get; }
 
+        [UsedImplicitly]
+        [Option(Template = "-t", Description = "Add compare to newpp column")]
+        public bool NewppCompare { get; } = true;
+
         private const string base_url = "https://osu.ppy.sh";
+
+        private class ResultProfile
+        {
+            public int UserID { get; set; }
+            public string Username { get; set; }
+            public string UserCountry { get; set; }
+            public string LivePP { get; set; }
+            public string LocalPP { get; set; }
+            public List<ResultBeatmap> Beatmaps { get; set; } = new List<ResultBeatmap>();
+        }
 
         private class ResultBeatmap
         {
             public string Beatmap { get; set; }
             public string LivePP { get; set; }
             public string LocalPP { get; set; }
+            public string ComparePP { get; set; }
             public string PPChange { get; set; }
             public string PositionChange { get; set; }
             public string AimPP { get; set; }
@@ -270,7 +285,7 @@ namespace PerformanceCalculator.Profile
             totalLocalPP += playcountBonusPP;
             double totalDiffPP = totalLocalPP - totalLivePP;
 
-            var obj = new
+            var obj = new ResultProfile
             {
                 UserID = userData.user_id,
                 Username = userData.username,
@@ -283,16 +298,44 @@ namespace PerformanceCalculator.Profile
             const int score_amt = 1000;
             localOrdered = localOrdered.Take(score_amt).ToList();
 
+            ResultProfile newppProfile = null;
+            if (NewppCompare)
+            {
+                using (var req = new JsonWebRequest<ResultProfile>($"https://newpp.stanr.info/api/getresults?player={userData.user_id}"))
+                {
+                    req.Perform();
+                    newppProfile = req.ResponseObject;
+                }
+            }
+
             foreach (var item in localOrdered)
             {
                 var mods = item.Mods == "None" ? string.Empty : item.Mods.Insert(0, "+");
+                var beatmapName = FormattableString.Invariant($"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods} ({item.Accuracy}%, {item.Combo}{item.Misses})");
+                var ppChange = item.LocalPP - item.LivePP;
+
+                string newppVal = null;
+
+                if (NewppCompare)
+                {
+                    var map = newppProfile?.Beatmaps.SingleOrDefault(x => x.Beatmap == beatmapName);
+
+                    if (map != null)
+                    {
+                        var newppLocal = double.Parse(map.LocalPP);
+                        newppVal = map.LocalPP;
+                        ppChange = item.LocalPP - newppLocal;
+                    }
+                }
+
                 obj.Beatmaps.Add(new ResultBeatmap()
                 {
-                    Beatmap = FormattableString.Invariant($"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods} ({item.Accuracy}%, {item.Combo}{item.Misses})"),
+                    Beatmap = beatmapName,
                     LivePP = FormattableString.Invariant($"{item.LivePP:F1}"),
                     LocalPP = FormattableString.Invariant($"{item.LocalPP:F1}"),
+                    ComparePP = newppVal,
                     PositionChange = FormattableString.Invariant($"{liveOrdered.IndexOf(item) - localOrdered.IndexOf(item):+0;-0;-}"),
-                    PPChange = FormattableString.Invariant($"{item.LocalPP - item.LivePP:+0.0;-0.0}"),
+                    PPChange = FormattableString.Invariant($"{ppChange:+0.0;-0.0}"),
                     AimPP = FormattableString.Invariant($"{item.AimPP:F1}"),
                     AccPP = FormattableString.Invariant($"{item.AccPP:F1}"),
                     TapPP = FormattableString.Invariant($"{item.TapPP:F1}")
