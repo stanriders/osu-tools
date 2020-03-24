@@ -44,7 +44,7 @@ namespace PerformanceCalculator.Profile
 
         [UsedImplicitly]
         [Option(Template = "-t", Description = "Add compare to newpp column")]
-        public bool NewppCompare { get; } = true;
+        public bool NewppCompare { get; }
 
         private const string base_url = "https://osu.ppy.sh";
 
