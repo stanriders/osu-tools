@@ -20,7 +20,7 @@ namespace PerformanceCalculator.Simulate
         [UsedImplicitly]
         [Required, FileExists]
         [Argument(0, Name = "beatmap", Description = "Required. The beatmap file (.osu).")]
-        public override string Beatmap { get; }
+        public override string Beatmap { get; set; }
 
         [UsedImplicitly]
         [Option(Template = "-s|--score <score>", Description = "Score. An integer 0-1000000.")]

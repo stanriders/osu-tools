@@ -312,19 +312,23 @@ namespace PerformanceCalculator.Profile
             {
                 var mods = item.Mods == "None" ? string.Empty : item.Mods.Insert(0, "+");
                 var beatmapName = FormattableString.Invariant($"{item.Beatmap.OnlineBeatmapID} - {item.Beatmap} {mods} ({item.Accuracy}%, {item.Combo}{item.Misses})");
-                var ppChange = item.LocalPP - item.LivePP;
+                var ppChange = FormattableString.Invariant($"{item.LocalPP - item.LivePP:+0.0;-0.0}");
 
                 string newppVal = null;
 
                 if (NewppCompare)
                 {
                     var map = newppProfile?.Beatmaps.SingleOrDefault(x => x.Beatmap == beatmapName);
-
+                   
                     if (map != null)
                     {
                         var newppLocal = double.Parse(map.LocalPP);
                         newppVal = map.LocalPP;
-                        ppChange = item.LocalPP - newppLocal;
+                        ppChange = FormattableString.Invariant($"{item.LocalPP - newppLocal:+0.0;-0.0}"); 
+                    }
+                    else
+                    {
+                        ppChange += "<br>(vs live)";
                     }
                 }
 
@@ -335,7 +339,7 @@ namespace PerformanceCalculator.Profile
                     LocalPP = FormattableString.Invariant($"{item.LocalPP:F1}"),
                     ComparePP = newppVal,
                     PositionChange = FormattableString.Invariant($"{liveOrdered.IndexOf(item) - localOrdered.IndexOf(item):+0;-0;-}"),
-                    PPChange = FormattableString.Invariant($"{ppChange:+0.0;-0.0}"),
+                    PPChange = ppChange,
                     AimPP = FormattableString.Invariant($"{item.AimPP:F1}"),
                     AccPP = FormattableString.Invariant($"{item.AccPP:F1}"),
                     TapPP = FormattableString.Invariant($"{item.TapPP:F1}")

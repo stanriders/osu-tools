@@ -9,6 +9,7 @@ using System.Linq;
 using JetBrains.Annotations;
 using McMaster.Extensions.CommandLineUtils;
 using Newtonsoft.Json;
+using osu.Framework.IO.Network;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets;
@@ -25,7 +26,7 @@ namespace PerformanceCalculator.Simulate
 {
     public abstract class SimulateCommand : ProcessorCommand
     {
-        public abstract string Beatmap { get; }
+        public abstract string Beatmap { get; set; }
 
         public abstract Ruleset Ruleset { get; }
 
@@ -86,6 +87,22 @@ namespace PerformanceCalculator.Simulate
             var ruleset = Ruleset;
 
             var mods = getMods(ruleset).ToArray();
+
+            if (Beatmap.Contains("osu.ppy.sh"))
+            {
+                // only osu.ppy.sh/b/123
+                var id = Beatmap.Split('/').Last();
+
+                using (var req = new WebRequest($"https://osu.ppy.sh/osu/{id}"))
+                {
+                    req.Perform();
+                    if (!req.Completed)
+                        return;
+
+                    File.WriteAllText($"cache/{id}.osu", req.ResponseString);
+                    Beatmap = $"cache/{id}.osu";
+                }
+            }
 
             var workingBeatmap = new ProcessorWorkingBeatmap(Beatmap);
 
@@ -155,22 +172,26 @@ namespace PerformanceCalculator.Simulate
                 diffDb.SaveChanges();
             }
 
-            (double pp100, var aimpp100, var tappp100, var accpp100) = getPPForAccuracy(100, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp99, var aimpp99, var tappp99, var accpp99) =  getPPForAccuracy(99, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp98, var aimpp98, var tappp98, var accpp98) =  getPPForAccuracy(98, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp97, var aimpp97, var tappp97, var accpp97) =  getPPForAccuracy(97, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp96, var aimpp96, var tappp96, var accpp96) =  getPPForAccuracy(96, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp95, var aimpp95, var tappp95, var accpp95) =  getPPForAccuracy(95, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp94, var aimpp94, var tappp94, var accpp94) =  getPPForAccuracy(94, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp93, var aimpp93, var tappp93, var accpp93) =  getPPForAccuracy(93, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp92, var aimpp92, var tappp92, var accpp92) =  getPPForAccuracy(92, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp91, var aimpp91, var tappp91, var accpp91) =  getPPForAccuracy(91, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
-            (double pp90, var aimpp90, var tappp90, var accpp90) =  getPPForAccuracy(90, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+            const int acc_start = 90;
+
+            var ppList = new List<double>(100 - acc_start);
+            var aimppList = new List<double>(100 - acc_start);
+            var tapppList = new List<double>(100 - acc_start);
+            var accppList = new List<double>(100 - acc_start);
+
+            for (int i = acc_start; i <= 100; i++)
+            {
+                (double pp, var aimpp, var tappp, var accpp) = getPPForAccuracy(i, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+                ppList.Add(pp);
+                aimppList.Add(aimpp);
+                tapppList.Add(tappp);
+                accppList.Add(accpp);
+            }
 
             var misspp = new List<ComboGraph>();
 
             var objects = beatmap.HitObjects.Select(x => new OsuHitObjectWithCombo((OsuHitObject)x)).ToList();
-            
+
             foreach (var c in beatmap.HitObjects)
             {
                 if (c.NestedHitObjects.Count > 0)
@@ -220,10 +241,10 @@ namespace PerformanceCalculator.Simulate
                 Id = mapId,
                 BeatmapSetId = beatmap.BeatmapInfo.BeatmapSet?.OnlineBeatmapSetID,
                 Title = workingBeatmap.BeatmapInfo.ToString(),
-                PP = new [] { pp90, pp91, pp92, pp93, pp94, pp95, pp96, pp97, pp98, pp99, pp100 },
-                AimPP = new[] { aimpp90, aimpp91, aimpp92, aimpp93, aimpp94, aimpp95, aimpp96, aimpp97, aimpp98, aimpp99, aimpp100 },
-                TapPP = new[] { tappp90, tappp91, tappp92, tappp93, tappp94, tappp95, tappp96, tappp97, tappp98, tappp99, tappp100 },
-                AccPP = new[] { accpp90, accpp91, accpp92, accpp93, accpp94, accpp95, accpp96, accpp97, accpp98, accpp99, accpp100 },
+                PP = ppList,
+                AimPP = aimppList,
+                TapPP = tapppList,
+                AccPP = accppList,
                 MissPP = misspp,
                 Stars = attributes.StarRating,
                 AimSR = attributes.AimSR,
@@ -232,7 +253,13 @@ namespace PerformanceCalculator.Simulate
                 Mods = mods
             };
 
-            var json = JsonConvert.SerializeObject(obj, new JsonSerializerSettings { Culture = CultureInfo.InvariantCulture });
+            var json = JsonConvert.SerializeObject(obj, new JsonSerializerSettings
+            {
+                Culture = CultureInfo.InvariantCulture,
+#if DEBUG
+                Formatting = Formatting.Indented
+#endif
+            });
 
             if (!Directory.Exists("mapinfo"))
                 Directory.CreateDirectory("mapinfo");

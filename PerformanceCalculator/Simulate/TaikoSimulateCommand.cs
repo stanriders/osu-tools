@@ -23,7 +23,7 @@ namespace PerformanceCalculator.Simulate
         [UsedImplicitly]
         [Required, FileExists]
         [Argument(0, Name = "beatmap", Description = "Required. The beatmap file (.osu).")]
-        public override string Beatmap { get; }
+        public override string Beatmap { get; set; }
 
         [UsedImplicitly]
         [Option(Template = "-a|--accuracy <accuracy>", Description = "Accuracy. Enter as decimal 0-100. Defaults to 100."
