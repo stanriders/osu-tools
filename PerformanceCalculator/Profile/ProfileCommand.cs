@@ -55,6 +55,7 @@ namespace PerformanceCalculator.Profile
             public string UserCountry { get; set; }
             public string LivePP { get; set; }
             public string LocalPP { get; set; }
+            public string SitePP { get; set; }
             public List<ResultBeatmap> Beatmaps { get; set; } = new List<ResultBeatmap>();
         }
 
@@ -285,19 +286,6 @@ namespace PerformanceCalculator.Profile
             totalLocalPP += playcountBonusPP;
             double totalDiffPP = totalLocalPP - totalLivePP;
 
-            var obj = new ResultProfile
-            {
-                UserID = userData.user_id,
-                Username = userData.username,
-                UserCountry = userData.country,
-                LivePP = FormattableString.Invariant($"{totalLivePP:F1} (including {playcountBonusPP:F1}pp from playcount)"),
-                LocalPP = FormattableString.Invariant($"{totalLocalPP:F1} ({totalDiffPP:+0.0;-0.0;-})"),
-                Beatmaps = new List<ResultBeatmap>()
-            };
-
-            const int score_amt = 1000;
-            localOrdered = localOrdered.Take(score_amt).ToList();
-
             ResultProfile newppProfile = null;
             if (NewppCompare)
             {
@@ -307,6 +295,21 @@ namespace PerformanceCalculator.Profile
                     newppProfile = req.ResponseObject;
                 }
             }
+
+            var obj = new ResultProfile
+            {
+                UserID = userData.user_id,
+                Username = userData.username,
+                UserCountry = userData.country,
+                LivePP = FormattableString.Invariant($"{totalLivePP:F1} (including {playcountBonusPP:F1}pp from playcount)"),
+                LocalPP = FormattableString.Invariant($"{totalLocalPP:F1} ({totalDiffPP:+0.0;-0.0;-})"),
+                SitePP = newppProfile.LocalPP,
+                Beatmaps = new List<ResultBeatmap>()
+            };
+
+            const int score_amt = 1000;
+            localOrdered = localOrdered.Take(score_amt).ToList();
+
 
             foreach (var item in localOrdered)
             {
