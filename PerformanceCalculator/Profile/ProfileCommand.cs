@@ -303,7 +303,7 @@ namespace PerformanceCalculator.Profile
                 UserCountry = userData.country,
                 LivePP = FormattableString.Invariant($"{totalLivePP:F1} (including {playcountBonusPP:F1}pp from playcount)"),
                 LocalPP = FormattableString.Invariant($"{totalLocalPP:F1} ({totalDiffPP:+0.0;-0.0;-})"),
-                SitePP = newppProfile.LocalPP,
+                SitePP = newppProfile?.LocalPP,
                 Beatmaps = new List<ResultBeatmap>()
             };
 
