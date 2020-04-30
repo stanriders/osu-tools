@@ -8,6 +8,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Network;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Formats;
+using osu.Game.IO;
 
 namespace PerformanceCalculator
 {
@@ -44,7 +45,7 @@ namespace PerformanceCalculator
             try
             {
                 using (var stream = File.OpenRead(filename))
-                using (var streamReader = new StreamReader(stream))
+                using (var streamReader = new LineBufferedReader(stream))
                     return Decoder.GetDecoder<Beatmap>(streamReader).Decode(streamReader);
             }
             catch (Exception)
@@ -53,7 +54,7 @@ namespace PerformanceCalculator
                 new FileWebRequest(filename, $"https://osu.ppy.sh/osu/{Path.GetFileNameWithoutExtension(filename)}").Perform();
 
                 using (var stream = File.OpenRead(filename))
-                using (var streamReader = new StreamReader(stream))
+                using (var streamReader = new LineBufferedReader(stream))
                     return Decoder.GetDecoder<Beatmap>(streamReader).Decode(streamReader);
             }
         }
