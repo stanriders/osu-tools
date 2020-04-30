@@ -102,7 +102,6 @@ namespace PerformanceCalculator.Profile
                 scores = getJsonFromApi<ScoreDbModel[]>($"get_user_best?k={Key}&u={ProfileName}&limit=100");
             }
 
-                Mod[] mods = ruleset.ConvertFromLegacyMods((LegacyMods)play.enabled_mods).ToArray();
             Console.WriteLine("Calculating...");
 
             using (var diffDb = new DifficultyAttributeCacheContext())
@@ -110,13 +109,6 @@ namespace PerformanceCalculator.Profile
                 foreach (var play in scores)
                 {
                     string beatmapID = ((int)play.beatmap_id).ToString();
-
-                var score = new ProcessorScoreDecoder(working).Parse(new ScoreInfo
-                {
-                    Ruleset = ruleset.RulesetInfo,
-                    MaxCombo = play.maxcombo,
-                    Mods = mods,
-                    Statistics = new Dictionary<HitResult, int>
                     string cachePath = Path.Combine("cache", $"{beatmapID}.osu");
 
                     if (!File.Exists(cachePath))
@@ -126,14 +118,14 @@ namespace PerformanceCalculator.Profile
                     }
 
                     LegacyMods legacyMods = play.enabled_mods;
-                    Mod[] mods = ruleset.ConvertLegacyMods(legacyMods).ToArray();
+                    Mod[] mods = ruleset.ConvertFromLegacyMods((LegacyMods)play.enabled_mods).ToArray();
 
                     if (new FileInfo(cachePath).Length <= 0)
                         continue;
 
                     var working = new ProcessorWorkingBeatmap(cachePath, (int)play.beatmap_id);
 
-                    var score = new ProcessorScoreParser(working).Parse(new ScoreInfo
+                    var score = new ProcessorScoreDecoder(working).Parse(new ScoreInfo
                     {
                         Ruleset = ruleset.RulesetInfo,
                         MaxCombo = play.maxcombo,

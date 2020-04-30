@@ -99,7 +99,7 @@ namespace PerformanceCalculator.Simulate
                     if (!req.Completed)
                         return;
 
-                    File.WriteAllText($"cache/{id}.osu", req.ResponseString);
+                    File.WriteAllText($"cache/{id}.osu", req.GetResponseString());
                     Beatmap = $"cache/{id}.osu";
                 }
             }
@@ -196,7 +196,7 @@ namespace PerformanceCalculator.Simulate
             {
                 if (c.NestedHitObjects.Count > 0)
                     foreach (var nestedObj in c.NestedHitObjects)
-                        if (nestedObj is SliderTailCircle || nestedObj is RepeatPoint || nestedObj is SliderTick)
+                        if (nestedObj is SliderTailCircle || nestedObj is SliderRepeat || nestedObj is SliderTick)
                             objects.Add(new OsuHitObjectWithCombo((OsuHitObject)nestedObj));
             }
 
@@ -207,7 +207,7 @@ namespace PerformanceCalculator.Simulate
 
             while (objects[objects.Count - 1].OriginalType == typeof(SliderTailCircle)
                    || objects[objects.Count - 1].OriginalType == typeof(SliderTick)
-                   || objects[objects.Count - 1].OriginalType == typeof(RepeatPoint))
+                   || objects[objects.Count - 1].OriginalType == typeof(SliderRepeat))
             {
                 // remove ending slider parts to match aimprob graph time scale
                 objects.RemoveAt(objects.Count - 1);
