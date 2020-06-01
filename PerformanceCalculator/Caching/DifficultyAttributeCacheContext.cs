@@ -22,8 +22,7 @@ namespace PerformanceCalculator.Caching
         public double TapSR { get; set; }
         public double TapDiff { get; set; }
         public double StreamNoteCount { get; set; }
-        public string MashLevels { get; set; }
-        public string TapSkills { get; set; }
+        public double MashTapDiff { get; set; }
 
         public double FingerControlSR { get; set; }
         public double FingerControlDiff { get; set; }
@@ -53,20 +52,19 @@ namespace PerformanceCalculator.Caching
 
         public void FromOsuDifficultyAttributes(OsuDifficultyAttributes osuAttrs)
         {
-            TapSR = osuAttrs.TapSR;
+            TapSR = osuAttrs.TapSr;
             TapDiff = osuAttrs.TapDiff;
             StreamNoteCount = osuAttrs.StreamNoteCount;
-            MashLevels = fromDoubleArray(osuAttrs.MashLevels);
-            TapSkills = fromDoubleArray(osuAttrs.TapSkills);
+            MashTapDiff = MashTapDiff;
 
-            FingerControlSR = osuAttrs.FingerControlSR;
+            FingerControlSR = osuAttrs.FingerControlSr;
             FingerControlDiff = osuAttrs.FingerControlDiff;
 
-            AimSR = osuAttrs.AimSR;
+            AimSR = osuAttrs.AimSr;
             AimDiff = osuAttrs.AimDiff;
             AimHiddenFactor = osuAttrs.AimHiddenFactor;
-            ComboTPs = fromDoubleArray(osuAttrs.ComboTPs);
-            MissTPs = fromDoubleArray(osuAttrs.MissTPs);
+            ComboTPs = fromDoubleArray(osuAttrs.ComboTps);
+            MissTPs = fromDoubleArray(osuAttrs.MissTps);
             MissCounts = fromDoubleArray(osuAttrs.MissCounts);
             CheeseNoteCount = osuAttrs.CheeseNoteCount;
             CheeseLevels = fromDoubleArray(osuAttrs.CheeseLevels);
@@ -84,20 +82,19 @@ namespace PerformanceCalculator.Caching
         {
             return new OsuDifficultyAttributes
             {
-                TapSR = TapSR,
+                TapSr = TapSR,
                 TapDiff = TapDiff,
                 StreamNoteCount = StreamNoteCount,
-                MashLevels = toDoubleArray(MashLevels),
-                TapSkills = toDoubleArray(TapSkills),
+                MashTapDiff = MashTapDiff,
 
-                FingerControlSR = FingerControlSR,
+                FingerControlSr = FingerControlSR,
                 FingerControlDiff = FingerControlDiff,
 
-                AimSR = AimSR,
+                AimSr = AimSR,
                 AimDiff = AimDiff,
                 AimHiddenFactor = AimHiddenFactor,
-                ComboTPs = toDoubleArray(ComboTPs),
-                MissTPs = toDoubleArray(MissTPs),
+                ComboTps = toDoubleArray(ComboTPs),
+                MissTps = toDoubleArray(MissTPs),
                 MissCounts = toDoubleArray(MissCounts),
                 CheeseNoteCount = CheeseNoteCount,
                 CheeseLevels = toDoubleArray(CheeseLevels),
