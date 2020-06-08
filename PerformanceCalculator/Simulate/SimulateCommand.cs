@@ -92,16 +92,21 @@ namespace PerformanceCalculator.Simulate
             {
                 // only osu.ppy.sh/b/123
                 var id = Beatmap.Split('/').Last();
+                var fileName = $"cache/{id}.osu";
 
-                using (var req = new WebRequest($"https://osu.ppy.sh/osu/{id}"))
+                if (!File.Exists(fileName))
                 {
-                    req.Perform();
-                    if (!req.Completed)
-                        return;
+                    using (var req = new WebRequest($"https://osu.ppy.sh/osu/{id}"))
+                    {
+                        req.Perform();
+                        if (!req.Completed)
+                            return;
 
-                    File.WriteAllText($"cache/{id}.osu", req.GetResponseString());
-                    Beatmap = $"cache/{id}.osu";
+                        File.WriteAllText(fileName, req.GetResponseString());
+                    }
                 }
+
+                Beatmap = fileName;
             }
 
             var workingBeatmap = new ProcessorWorkingBeatmap(Beatmap);
@@ -189,7 +194,7 @@ namespace PerformanceCalculator.Simulate
             }
 
             var misspp = new List<ComboGraph>();
-
+            /*
             var objects = beatmap.HitObjects.Select(x => new OsuHitObjectWithCombo((OsuHitObject)x)).ToList();
 
             foreach (var c in beatmap.HitObjects)
@@ -235,7 +240,7 @@ namespace PerformanceCalculator.Simulate
                 if (i >= objects.Count)
                     break;
             }
-
+            */
             var obj = new
             {
                 Id = mapId,
@@ -247,9 +252,9 @@ namespace PerformanceCalculator.Simulate
                 AccPP = accppList,
                 MissPP = misspp,
                 Stars = attributes.StarRating,
-                AimSR = attributes.AimSR,
-                TapSR = attributes.TapSR,
-                FingerControlSR = attributes.FingerControlSR,
+                AimSR = attributes.AimSr,
+                TapSR = attributes.TapSr,
+                FingerControlSR = attributes.FingerControlSr,
                 Mods = mods
             };
 

@@ -55,7 +55,7 @@ namespace PerformanceCalculator.Caching
             TapSR = osuAttrs.TapSr;
             TapDiff = osuAttrs.TapDiff;
             StreamNoteCount = osuAttrs.StreamNoteCount;
-            MashTapDiff = MashTapDiff;
+            MashTapDiff = osuAttrs.MashTapDiff;
 
             FingerControlSR = osuAttrs.FingerControlSr;
             FingerControlDiff = osuAttrs.FingerControlDiff;
