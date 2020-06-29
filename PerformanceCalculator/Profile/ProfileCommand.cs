@@ -39,6 +39,10 @@ namespace PerformanceCalculator.Profile
         public bool UseDatabase { get; }
 
         [UsedImplicitly]
+        [Option(Template = "-p", Description = "Only calculate scores higher than this threshold")]
+        public double PPThreshold { get; }
+
+        [UsedImplicitly]
         [Option(Template = "-s", Description = "Add _suffix to the final file name")]
         public string Suffix { get; }
 
@@ -108,6 +112,9 @@ namespace PerformanceCalculator.Profile
             {
                 foreach (var play in scores)
                 {
+                    if (play.pp < PPThreshold)
+                        continue;
+
                     string beatmapID = ((int)play.beatmap_id).ToString();
                     string cachePath = Path.Combine("cache", $"{beatmapID}.osu");
 
