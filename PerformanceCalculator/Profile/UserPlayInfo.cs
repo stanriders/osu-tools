@@ -15,6 +15,7 @@ namespace PerformanceCalculator.Profile
         public double AimPP;
         public double TapPP;
         public double AccPP;
+        public double ReadingPP;
 
         public string BeatmapId;
         public BeatmapInfo Beatmap;

@@ -26,6 +26,13 @@ namespace PerformanceCalculator.Caching
 
         public double FingerControlSR { get; set; }
         public double FingerControlDiff { get; set; }
+        //public int FingerControlHardStrains { get; set; }
+
+        //public double ReadingSR { get; set; }
+        //public double ReadingDiff { get; set; }
+
+        //public string SliderDiff { get; set; }
+        //public double SliderSr { get; set; }
 
         public double AimSR { get; set; }
         public double AimDiff { get; set; }
@@ -59,6 +66,13 @@ namespace PerformanceCalculator.Caching
 
             FingerControlSR = osuAttrs.FingerControlSr;
             FingerControlDiff = osuAttrs.FingerControlDiff;
+            //FingerControlHardStrains = osuAttrs.FingerControlHardStrains;
+
+            //ReadingSR = osuAttrs.ReadingSr;
+            //ReadingDiff = osuAttrs.ReadingDiff;
+
+            //SliderDiff = fromDoubleArray(osuAttrs.SliderDiff);
+            //SliderSr = osuAttrs.SliderSr;
 
             AimSR = osuAttrs.AimSr;
             AimDiff = osuAttrs.AimDiff;
@@ -89,7 +103,13 @@ namespace PerformanceCalculator.Caching
 
                 FingerControlSr = FingerControlSR,
                 FingerControlDiff = FingerControlDiff,
+                //FingerControlHardStrains = FingerControlHardStrains,
 
+                //ReadingSr = ReadingSR,
+                //ReadingDiff = ReadingDiff,
+
+                //SliderDiff = toDoubleArray(SliderDiff),
+                //SliderSr = SliderSr,
                 AimSr = AimSR,
                 AimDiff = AimDiff,
                 AimHiddenFactor = AimHiddenFactor,

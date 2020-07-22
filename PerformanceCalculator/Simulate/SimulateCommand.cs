@@ -183,14 +183,16 @@ namespace PerformanceCalculator.Simulate
             var aimppList = new List<double>(100 - acc_start);
             var tapppList = new List<double>(100 - acc_start);
             var accppList = new List<double>(100 - acc_start);
+            var readingppList = new List<double>(100 - acc_start);
 
             for (int i = acc_start; i <= 100; i++)
             {
-                (double pp, var aimpp, var tappp, var accpp) = getPPForAccuracy(i, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
+                var (pp, aimpp, tappp, accpp, readingpp) = getPPForAccuracy(i, workingBeatmap, beatmap, mods, maxCombo, score, attributes, ruleset);
                 ppList.Add(pp);
                 aimppList.Add(aimpp);
                 tapppList.Add(tappp);
                 accppList.Add(accpp);
+                readingppList.Add(readingpp);
             }
 
             var misspp = new List<ComboGraph>();
@@ -250,10 +252,12 @@ namespace PerformanceCalculator.Simulate
                 AimPP = aimppList,
                 TapPP = tapppList,
                 AccPP = accppList,
+                ReadingPP = readingppList,
                 MissPP = misspp,
                 Stars = attributes.StarRating,
                 AimSR = attributes.AimSr,
                 TapSR = attributes.TapSr,
+                //ReadingSR = attributes.ReadingSr,
                 FingerControlSR = attributes.FingerControlSr,
                 Mods = mods
             };
@@ -327,7 +331,7 @@ namespace PerformanceCalculator.Simulate
             return flags;
         }
 
-        private (double, double, double, double) getPPForAccuracy(double acc, ProcessorWorkingBeatmap workingBeatmap, IBeatmap beatmap, Mod[] mods, int maxCombo, int score, DifficultyAttributes attributes, Ruleset ruleset)
+        private (double, double, double, double, double) getPPForAccuracy(double acc, ProcessorWorkingBeatmap workingBeatmap, IBeatmap beatmap, Mod[] mods, int maxCombo, int score, DifficultyAttributes attributes, Ruleset ruleset)
         {
             var statistics = GenerateHitResults(acc / 100, beatmap, 0, null, null);
             var scoreInfo = new ScoreInfo
@@ -342,7 +346,7 @@ namespace PerformanceCalculator.Simulate
             perfCalc.Attributes = attributes;
             var diffCats = new Dictionary<string, double>();
             var pp = perfCalc.Calculate(diffCats);
-            return (Math.Round(pp, 2), Math.Round(diffCats["Aim"], 2), Math.Round(diffCats["Tap"], 2), Math.Round(diffCats["Accuracy"], 2));
+            return (Math.Round(pp, 2), Math.Round(diffCats["Aim"], 2), Math.Round(diffCats["Tap"], 2), Math.Round(diffCats["Accuracy"], 2), /*Math.Round(diffCats["Reading"], 2)*/ 0);
         }
 
         private double getPPForCombo(ProcessorWorkingBeatmap workingBeatmap, IBeatmap beatmap, Mod[] mods, int maxCombo, int score, DifficultyAttributes attributes, Ruleset ruleset, int misses = 0)

@@ -15,6 +15,7 @@ using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Difficulty;
+using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using PerformanceCalculator.Caching;
@@ -50,6 +51,10 @@ namespace PerformanceCalculator.Profile
         [Option(Template = "-t", Description = "Add compare to newpp column")]
         public bool NewppCompare { get; }
 
+        [UsedImplicitly]
+        [Option(Template = "-td", Description = "Add compare to newpp column for full dump profiles")]
+        public bool NewppCompareDatabase { get; }
+
         private const string base_url = "https://osu.ppy.sh";
 
         private class ResultProfile
@@ -74,6 +79,7 @@ namespace PerformanceCalculator.Profile
             public string AimPP { get; set; }
             public string TapPP { get; set; }
             public string AccPP { get; set; }
+            public string ReadingPP { get; set; }
         }
 
         public override void Execute()
@@ -206,6 +212,7 @@ namespace PerformanceCalculator.Profile
                     var aimPP = 0.0;
                     var tapPP = 0.0;
                     var accPP = 0.0;
+                    var readingPP = 0.0;
                     var categories = new Dictionary<string, double>();
 
                     try
@@ -215,6 +222,7 @@ namespace PerformanceCalculator.Profile
                         aimPP = categories["Aim"];
                         tapPP = categories["Tap"];
                         accPP = categories["Accuracy"];
+                        //readingPP = categories["Reading"];
                     }
                     catch (Exception e)
                     {
@@ -233,7 +241,8 @@ namespace PerformanceCalculator.Profile
                         Misses = play.countmiss == 0 ? "" : $", {play.countmiss} {(play.countmiss == 1 ? "miss" : "misses")}",
                         AimPP = aimPP,
                         TapPP = tapPP,
-                        AccPP = accPP
+                        AccPP = accPP,
+                        ReadingPP = readingPP
                     };
 
                     displayPlays.Add(thisPlay);
@@ -251,23 +260,23 @@ namespace PerformanceCalculator.Profile
                 }
             }
 
+            var liveOrdered = displayPlays.OrderByDescending(p => p.LivePP).ToList();
+            var localOrdered = displayPlays.OrderByDescending(p => p.LocalPP).ToList();
+
             if (UseDatabase)
             {
-                var scores2 = new List<UserPlayInfo>();
+                // if a map has more than one score take the biggest pp score
 
-                var maps = displayPlays.Select(x => x.BeatmapId).Distinct();
+                liveOrdered = displayPlays.GroupBy(x => x.BeatmapId)
+                                          .Select(x => x.OrderByDescending(x => x.LivePP).First())
+                                          .OrderByDescending(p => p.LivePP)
+                                          .ToList();
 
-                foreach (var map in maps)
-                {
-                    // if there're multiple scores on one map use play with bigger local pp value
-                    scores2.Add(displayPlays.Where(x => x.BeatmapId == map).OrderByDescending(x => x.LocalPP).First());
-                }
-
-                displayPlays = scores2;
+                localOrdered = displayPlays.GroupBy(x => x.BeatmapId)
+                                           .Select(x => x.OrderByDescending(x => x.LocalPP).First())
+                                           .OrderByDescending(p => p.LocalPP)
+                                           .ToList();
             }
-
-            var localOrdered = displayPlays.OrderByDescending(p => p.LocalPP).ToList();
-            var liveOrdered = displayPlays.OrderByDescending(p => p.LivePP).ToList();
 
             int index = 0;
             double totalLocalPP = localOrdered.Sum(play => Math.Pow(0.95, index++) * play.LocalPP);
@@ -285,7 +294,11 @@ namespace PerformanceCalculator.Profile
 
             if (UseDatabase)
             {
-                playcountBonusPP = 416.6667 * (1 - Math.Pow(0.9994, scores.Length));
+                var scoreCount = scores.GroupBy(x => x.beatmap_id)
+                                       .Select(x => x.OrderByDescending(x => x.pp).First())
+                                       .Count();
+
+                playcountBonusPP = 416.6667 * (1 - Math.Pow(0.9994, scoreCount));
                 totalLivePP += playcountBonusPP;
             }
 
@@ -295,10 +308,27 @@ namespace PerformanceCalculator.Profile
             ResultProfile newppProfile = null;
             if (NewppCompare)
             {
-                using (var req = new JsonWebRequest<ResultProfile>($"https://newpp.stanr.info/api/getresults?player={userData.user_id}"))
+                var profile = userData.user_id;
+                if (UseDatabase && NewppCompareDatabase)
+                    profile = $"{userData.username}_full".ToLower();
+
+                using (var req = new JsonWebRequest<ResultProfile>($"https://newpp.stanr.info/api/getresults?player={profile}"))
                 {
                     req.Perform();
                     newppProfile = req.ResponseObject;
+                }
+
+                if (NewppCompareDatabase && !string.IsNullOrEmpty(newppProfile?.LivePP))
+                {
+                    var bonusIndex = newppProfile.LivePP.IndexOf("including ") + 10;
+                    var bonusEndIndex = newppProfile.LivePP.IndexOf("pp from");
+                    var siteBonus = double.Parse(newppProfile.LivePP[bonusIndex..bonusEndIndex], CultureInfo.InvariantCulture);
+
+                    var changeIndex = newppProfile.LocalPP.IndexOf(" (");
+                    var localNoChange = double.Parse(newppProfile.LocalPP.Substring(0, changeIndex), CultureInfo.InvariantCulture);
+
+                    localNoChange = localNoChange - siteBonus + playcountBonusPP;
+                    newppProfile.LocalPP = FormattableString.Invariant($"{localNoChange:F1} ({localNoChange - totalLivePP:F1})");
                 }
             }
 
@@ -351,7 +381,8 @@ namespace PerformanceCalculator.Profile
                     PPChange = ppChange,
                     AimPP = FormattableString.Invariant($"{item.AimPP:F1}"),
                     AccPP = FormattableString.Invariant($"{item.AccPP:F1}"),
-                    TapPP = FormattableString.Invariant($"{item.TapPP:F1}")
+                    TapPP = FormattableString.Invariant($"{item.TapPP:F1}"),
+                    ReadingPP = FormattableString.Invariant($"{item.ReadingPP:F1}")
                 });
             }
 
