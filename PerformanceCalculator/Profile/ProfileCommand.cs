@@ -82,6 +82,43 @@ namespace PerformanceCalculator.Profile
             public string ReadingPP { get; set; }
         }
 
+        public class NewppPlayer
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = "Unknown Player";
+            public double LivePp { get; set; }
+            public double LocalPp { get; set; }
+            public double PlaycountPp { get; set; }
+            public string? Country { get; set; }
+            public DateTime UpdateTime { get; set; }
+            public List<NewppScore>? Scores { get; set; }
+        }
+
+        public class NewppMap
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = "Unknown Map";
+            public int MaxCombo { get; set; }
+        }
+
+        public class NewppScore
+        {
+            public long Id { get; set; }
+            public double LocalPp { get; set; }
+            public double? LivePp { get; set; }
+            public string? Mods { get; set; }
+            public double Accuracy { get; set; }
+            public int Combo { get; set; }
+            public int Misses { get; set; }
+            public DateTime UpdateTime { get; set; }
+            public string? AdditionalPpData { get; set; }
+            public int PositionChange { get; set; }
+            public int PlayerId { get; set; }
+            public NewppScore? Player { get; set; }
+            public int MapId { get; set; }
+            public NewppMap? Map { get; set; }
+        }
+
         public override void Execute()
         {
             var displayPlays = new List<UserPlayInfo>();
@@ -305,31 +342,29 @@ namespace PerformanceCalculator.Profile
             totalLocalPP += playcountBonusPP;
             double totalDiffPP = totalLocalPP - totalLivePP;
 
-            ResultProfile newppProfile = null;
+            NewppPlayer newppProfile = null;
             if (NewppCompare)
             {
                 var profile = userData.user_id;
                 if (UseDatabase && NewppCompareDatabase)
                     profile = $"{userData.username}_full".ToLower();
 
-                using (var req = new JsonWebRequest<ResultProfile>($"https://newpp.stanr.info/api/getresults?player={profile}"))
+                using (var req = new JsonWebRequest<NewppPlayer>($"https://newpp.stanr.info/api/player/{profile}"))
                 {
                     req.Perform();
                     newppProfile = req.ResponseObject;
                 }
-
+                /*
                 if (NewppCompareDatabase && !string.IsNullOrEmpty(newppProfile?.LivePP))
                 {
-                    var bonusIndex = newppProfile.LivePP.IndexOf("including ") + 10;
-                    var bonusEndIndex = newppProfile.LivePP.IndexOf("pp from");
-                    var siteBonus = double.Parse(newppProfile.LivePP[bonusIndex..bonusEndIndex], CultureInfo.InvariantCulture);
+                    var siteBonus = newppProfile.PlaycountPp;
 
-                    var changeIndex = newppProfile.LocalPP.IndexOf(" (");
-                    var localNoChange = double.Parse(newppProfile.LocalPP.Substring(0, changeIndex), CultureInfo.InvariantCulture);
+                    var changeIndex = newppProfile.LocalPp.IndexOf(" (");
+                    var localNoChange = double.Parse(newppProfile.LocalPp.Substring(0, changeIndex), CultureInfo.InvariantCulture);
 
                     localNoChange = localNoChange - siteBonus + playcountBonusPP;
-                    newppProfile.LocalPP = FormattableString.Invariant($"{localNoChange:F1} ({localNoChange - totalLivePP:F1})");
-                }
+                    newppProfile.LocalPp = FormattableString.Invariant($"{localNoChange:F1} ({localNoChange - totalLivePP:F1})");
+                }*/
             }
 
             var obj = new ResultProfile
@@ -339,7 +374,7 @@ namespace PerformanceCalculator.Profile
                 UserCountry = userData.country,
                 LivePP = FormattableString.Invariant($"{totalLivePP:F1} (including {playcountBonusPP:F1}pp from playcount)"),
                 LocalPP = FormattableString.Invariant($"{totalLocalPP:F1} ({totalDiffPP:+0.0;-0.0;-})"),
-                SitePP = newppProfile?.LocalPP,
+                SitePP = newppProfile?.LocalPp.ToString(),
                 Beatmaps = new List<ResultBeatmap>()
             };
 
@@ -357,12 +392,12 @@ namespace PerformanceCalculator.Profile
 
                 if (NewppCompare)
                 {
-                    var map = newppProfile?.Beatmaps.SingleOrDefault(x => x.Beatmap == beatmapName);
+                    var map = newppProfile?.Scores.SingleOrDefault(x => x.MapId == item.Beatmap.OnlineBeatmapID);
                    
                     if (map != null)
                     {
-                        var newppLocal = double.Parse(map.LocalPP);
-                        newppVal = map.LocalPP;
+                        var newppLocal = map.LocalPp;
+                        newppVal = map.LocalPp.ToString();
                         ppChange = FormattableString.Invariant($"{item.LocalPP - newppLocal:+0.0;-0.0}"); 
                     }
                     else
