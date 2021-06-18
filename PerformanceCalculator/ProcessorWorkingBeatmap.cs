@@ -9,6 +9,7 @@ using osu.Framework.IO.Network;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Formats;
 using osu.Game.IO;
+using osu.Game.Skinning;
 
 namespace PerformanceCalculator
 {
@@ -61,6 +62,8 @@ namespace PerformanceCalculator
 
         protected override IBeatmap GetBeatmap() => beatmap;
         protected override Texture GetBackground() => null;
-        protected override Track GetTrack() => null;
+        protected override Track GetBeatmapTrack() => null;
+        protected override ISkin GetSkin() => null;
+        public override Stream GetStream(string storagePath) => null;
     }
 }

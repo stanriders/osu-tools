@@ -255,10 +255,10 @@ namespace PerformanceCalculator.Simulate
                 ReadingPP = readingppList,
                 MissPP = misspp,
                 Stars = attributes.StarRating,
-                AimSR = attributes.AimSr,
-                TapSR = attributes.TapSr,
+                AimSR = attributes.AimStarRating,
+                TapSR = attributes.TapStarRating,
                 //ReadingSR = attributes.ReadingSr,
-                FingerControlSR = attributes.FingerControlSr,
+                FingerControlSR = attributes.FingerControlStarRating,
                 Mods = mods
             };
 

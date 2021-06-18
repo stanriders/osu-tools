@@ -59,13 +59,13 @@ namespace PerformanceCalculator.Caching
 
         public void FromOsuDifficultyAttributes(OsuDifficultyAttributes osuAttrs)
         {
-            TapSR = osuAttrs.TapSr;
-            TapDiff = osuAttrs.TapDiff;
+            TapSR = osuAttrs.TapStarRating;
+            TapDiff = osuAttrs.TapDifficulty;
             StreamNoteCount = osuAttrs.StreamNoteCount;
-            MashTapDiff = osuAttrs.MashTapDiff;
+            MashTapDiff = osuAttrs.MashTapDifficulty;
 
-            FingerControlSR = osuAttrs.FingerControlSr;
-            FingerControlDiff = osuAttrs.FingerControlDiff;
+            FingerControlSR = osuAttrs.FingerControlStarRating;
+            FingerControlDiff = osuAttrs.FingerControlDifficulty;
             //FingerControlHardStrains = osuAttrs.FingerControlHardStrains;
 
             //ReadingSR = osuAttrs.ReadingSr;
@@ -74,11 +74,11 @@ namespace PerformanceCalculator.Caching
             //SliderDiff = fromDoubleArray(osuAttrs.SliderDiff);
             //SliderSr = osuAttrs.SliderSr;
 
-            AimSR = osuAttrs.AimSr;
-            AimDiff = osuAttrs.AimDiff;
+            AimSR = osuAttrs.AimStarRating;
+            AimDiff = osuAttrs.AimDifficulty;
             AimHiddenFactor = osuAttrs.AimHiddenFactor;
-            ComboTPs = fromDoubleArray(osuAttrs.ComboTps);
-            MissTPs = fromDoubleArray(osuAttrs.MissTps);
+            ComboTPs = fromDoubleArray(osuAttrs.ComboThroughputs);
+            MissTPs = fromDoubleArray(osuAttrs.MissThroughputs);
             MissCounts = fromDoubleArray(osuAttrs.MissCounts);
             CheeseNoteCount = osuAttrs.CheeseNoteCount;
             CheeseLevels = fromDoubleArray(osuAttrs.CheeseLevels);
@@ -96,13 +96,13 @@ namespace PerformanceCalculator.Caching
         {
             return new OsuDifficultyAttributes
             {
-                TapSr = TapSR,
-                TapDiff = TapDiff,
+                TapStarRating = TapSR,
+                TapDifficulty = TapDiff,
                 StreamNoteCount = StreamNoteCount,
-                MashTapDiff = MashTapDiff,
+                MashTapDifficulty = MashTapDiff,
 
-                FingerControlSr = FingerControlSR,
-                FingerControlDiff = FingerControlDiff,
+                FingerControlStarRating = FingerControlSR,
+                FingerControlDifficulty = FingerControlDiff,
                 //FingerControlHardStrains = FingerControlHardStrains,
 
                 //ReadingSr = ReadingSR,
@@ -110,11 +110,11 @@ namespace PerformanceCalculator.Caching
 
                 //SliderDiff = toDoubleArray(SliderDiff),
                 //SliderSr = SliderSr,
-                AimSr = AimSR,
-                AimDiff = AimDiff,
+                AimStarRating = AimSR,
+                AimDifficulty = AimDiff,
                 AimHiddenFactor = AimHiddenFactor,
-                ComboTps = toDoubleArray(ComboTPs),
-                MissTps = toDoubleArray(MissTPs),
+                ComboThroughputs = toDoubleArray(ComboTPs),
+                MissThroughputs = toDoubleArray(MissTPs),
                 MissCounts = toDoubleArray(MissCounts),
                 CheeseNoteCount = CheeseNoteCount,
                 CheeseLevels = toDoubleArray(CheeseLevels),

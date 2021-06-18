@@ -184,8 +184,7 @@ namespace PerformanceCalculator.Profile
                         {
                             { HitResult.Perfect, (int)play.countgeki },
                             { HitResult.Great, (int)play.count300 },
-                            { HitResult.Good, (int)play.count100 },
-                            { HitResult.Ok, (int)play.countkatu },
+                            { HitResult.Ok, (int)play.count100 },
                             { HitResult.Meh, (int)play.count50 },
                             { HitResult.Miss, (int)play.countmiss }
                         }
