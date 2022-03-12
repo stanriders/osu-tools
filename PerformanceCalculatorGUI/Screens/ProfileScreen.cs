@@ -139,7 +139,7 @@ namespace PerformanceCalculatorGUI.Screens
                 if (userPanel != null)
                     layout.Remove(userPanel);
 
-                Schedule(() => layout.Insert(1, userPanel = new UserListPanel(user.Value)
+                Schedule(() => layout.Insert(1, userPanel = new UserPPListPanel(user.Value)
                 {
                     RelativeSizeAxes = Axes.X
                 }));
@@ -208,7 +208,8 @@ namespace PerformanceCalculatorGUI.Screens
                 var playcountBonusPP = (totalLivePP - nonBonusLivePP);
                 totalLocalPP += playcountBonusPP;
 
-                user.Value.Statistics.PP = totalLocalPP;
+                ((UserPPListPanel)userPanel).SetLivePP(totalLivePP);
+                ((UserPPListPanel)userPanel).SetLocalPP(totalLocalPP);
             }).ContinueWith(t =>
             {
                 Schedule(() =>
