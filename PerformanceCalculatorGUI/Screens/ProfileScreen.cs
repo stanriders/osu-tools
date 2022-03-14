@@ -18,7 +18,6 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Scoring.Legacy;
-using osu.Game.Users;
 using PerformanceCalculatorGUI.Components;
 
 namespace PerformanceCalculatorGUI.Screens
@@ -37,7 +36,7 @@ namespace PerformanceCalculatorGUI.Screens
 
         private FillFlowContainer layout;
 
-        private UserListPanel userPanel;
+        private UserPPListPanel userPanel;
 
         private readonly Bindable<APIUser> user = new Bindable<APIUser>();
 
@@ -207,8 +206,8 @@ namespace PerformanceCalculatorGUI.Screens
                 var playcountBonusPP = (totalLivePP - nonBonusLivePP);
                 totalLocalPP += playcountBonusPP;
 
-                ((UserPPListPanel)userPanel).SetLivePP(totalLivePP);
-                ((UserPPListPanel)userPanel).SetLocalPP(totalLocalPP);
+                userPanel.livePp.Value = totalLivePP;
+                userPanel.localPp.Value = totalLocalPP;
             }).ContinueWith(t =>
             {
                 Schedule(() =>

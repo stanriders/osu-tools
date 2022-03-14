@@ -1,9 +1,9 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using osu.Framework.Graphics;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Extensions.Color4Extensions;
 using osuTK.Graphics;
@@ -11,15 +11,17 @@ using osu.Framework.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Online.API.Requests.Responses;
 using osuTK;
-using osu.Game.Overlays.Profile.Header.Components;
 using osu.Game.Users;
 
 namespace PerformanceCalculatorGUI.Components
 {
     public class UserPPListPanel : UserListPanel
     {
-        OsuSpriteText liveLabel;
-        OsuSpriteText localLabel;
+        private OsuSpriteText liveLabel;
+        private OsuSpriteText localLabel;
+
+        public Bindable<decimal> livePp = new Bindable<decimal>();
+        public Bindable<decimal> localPp = new Bindable<decimal>();
 
         public UserPPListPanel(APIUser user)
             : base(user)
@@ -36,6 +38,9 @@ namespace PerformanceCalculatorGUI.Components
             Background.Origin = Anchor.CentreRight;
             Background.Anchor = Anchor.CentreRight;
             Background.Colour = ColourInfo.GradientHorizontal(Color4.White.Opacity(1), Color4.White.Opacity(0.3f));
+
+            livePp.ValueChanged += val => livePpBindableChange(val.NewValue);
+            localPp.ValueChanged += val => localPpBindableChange(val.NewValue);
         }
 
         protected override void LoadComplete()
@@ -46,14 +51,12 @@ namespace PerformanceCalculatorGUI.Components
 
         protected override Drawable CreateLayout()
         {
-            FillFlowContainer details;
-
             var layout = new Container
             {
                 RelativeSizeAxes = Axes.Both,
                 Children = new Drawable[]
                 {
-                    details = new FillFlowContainer
+                    new FillFlowContainer
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
@@ -100,14 +103,14 @@ namespace PerformanceCalculatorGUI.Components
             return layout;
         }
 
-        public void SetLocalPP(decimal pp)
+        private void localPpBindableChange(decimal newValue)
         {
-            localLabel.Text = "local pp: " + decimal.Round(pp, 1);
+            localLabel.Text = "local pp: " + decimal.Round(newValue, 1);
         }
 
-        public void SetLivePP(decimal pp)
+        private void livePpBindableChange(decimal newValue)
         {
-            liveLabel.Text = "live pp: " + decimal.Round(pp, 1);
+            liveLabel.Text = "live pp: " + decimal.Round(newValue, 1);
         }
     }
 }
