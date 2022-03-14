@@ -206,8 +206,11 @@ namespace PerformanceCalculatorGUI.Screens
                 var playcountBonusPP = (totalLivePP - nonBonusLivePP);
                 totalLocalPP += playcountBonusPP;
 
-                userPanel.livePp.Value = totalLivePP;
-                userPanel.localPp.Value = totalLocalPP;
+                Schedule(() =>
+                {
+                    userPanel.livePp.Value = totalLivePP;
+                    userPanel.localPp.Value = totalLocalPP;
+                });
             }).ContinueWith(t =>
             {
                 Schedule(() =>

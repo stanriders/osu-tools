@@ -39,8 +39,8 @@ namespace PerformanceCalculatorGUI.Components
             Background.Anchor = Anchor.CentreRight;
             Background.Colour = ColourInfo.GradientHorizontal(Color4.White.Opacity(1), Color4.White.Opacity(0.3f));
 
-            livePp.ValueChanged += val => livePpBindableChange(val.NewValue);
-            localPp.ValueChanged += val => localPpBindableChange(val.NewValue);
+            livePp.ValueChanged += val => { liveLabel.Text = $"live pp: {val.NewValue:N1}"; };
+            localPp.ValueChanged += val => { localLabel.Text = $"local pp: {val.NewValue:N1}"; };
         }
 
         protected override void LoadComplete()
@@ -83,14 +83,12 @@ namespace PerformanceCalculatorGUI.Components
                             }),
                             liveLabel = new OsuSpriteText
                             {
-                                Text = "",
                                 Colour = Colours.RedLighter,
                                 Anchor = Anchor.CentreLeft,
                                 Origin = Anchor.CentreLeft
                             },
                             localLabel = new OsuSpriteText
                             {
-                                Text = "",
                                 Colour = Colours.BlueLighter,
                                 Anchor = Anchor.CentreLeft,
                                 Origin = Anchor.CentreLeft
@@ -101,16 +99,6 @@ namespace PerformanceCalculatorGUI.Components
             };
 
             return layout;
-        }
-
-        private void localPpBindableChange(decimal newValue)
-        {
-            localLabel.Text = "local pp: " + decimal.Round(newValue, 1);
-        }
-
-        private void livePpBindableChange(decimal newValue)
-        {
-            liveLabel.Text = "live pp: " + decimal.Round(newValue, 1);
         }
     }
 }
