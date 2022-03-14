@@ -1,19 +1,15 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
-using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Cursor;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Threading;
+using osu.Framework.Screens;
 using osu.Game.Graphics;
 using osu.Game.Graphics.UserInterface;
-using osu.Game.Overlays;
-using osu.Game.Overlays.Dialog;
 using osu.Game.Overlays.Toolbar;
 using osu.Game.Rulesets;
 using osuTK;
@@ -24,9 +20,8 @@ namespace PerformanceCalculatorGUI
 {
     public class PerformanceCalculatorSceneManager : CompositeDrawable
     {
-        private Container screens;
-
         private ToolbarRulesetSelector rulesetSelector;
+        private ScreenStack screenStack;
 
         public const float CONTROL_AREA_HEIGHT = 50;
 
@@ -35,9 +30,6 @@ namespace PerformanceCalculatorGUI
 
         [Resolved]
         private Bindable<RulesetInfo> ruleset { get; set; }
-
-        [Resolved(canBeNull: true)]
-        private DialogOverlay dialogOverlay { get; set; }
 
         public PerformanceCalculatorSceneManager()
         {
@@ -86,21 +78,21 @@ namespace PerformanceCalculatorGUI
                                                     Text = "beatmap",
                                                     Height = SCREEN_SWITCH_HEIGHT,
                                                     Width = SCREEN_SWITCH_WIDTH,
-                                                    Action = () => trySettingScreen(typeof(SimulateScreen))
+                                                    Action = () => loadScreen(new SimulateScreen())
                                                 },
                                                 new OsuButton
                                                 {
                                                     Text = "profile",
                                                     Height = SCREEN_SWITCH_HEIGHT,
                                                     Width = SCREEN_SWITCH_WIDTH,
-                                                    Action = () => trySettingScreen(typeof(ProfileScreen))
+                                                    Action = () => loadScreen(new ProfileScreen())
                                                 },
                                                 new OsuButton
                                                 {
                                                     Text = "leaderboard",
                                                     Height = SCREEN_SWITCH_HEIGHT,
                                                     Width = SCREEN_SWITCH_WIDTH,
-                                                    Action = () => trySettingScreen(typeof(LeaderboardScreen))
+                                                    Action = () => loadScreen(new LeaderboardScreen())
                                                 }
                                             }
                                         },
@@ -123,16 +115,10 @@ namespace PerformanceCalculatorGUI
                             },
                             new Drawable[]
                             {
-                                screens = new Container
+                                screenStack = new ScreenStack
                                 {
                                     Depth = 1,
-                                    RelativeSizeAxes = Axes.Both,
-                                    Children = new Drawable[]
-                                    {
-                                        new SimulateScreen(),
-                                        new ProfileScreen(),
-                                        new LeaderboardScreen()
-                                    }
+                                    RelativeSizeAxes = Axes.Both
                                 }
                             }
                         }
@@ -140,10 +126,7 @@ namespace PerformanceCalculatorGUI
                 }
             };
 
-            foreach (var drawable in screens)
-                drawable.Hide();
-
-            setScreen(typeof(SimulateScreen));
+            loadScreen(new SimulateScreen());
         }
 
         protected override void LoadComplete()
@@ -153,48 +136,11 @@ namespace PerformanceCalculatorGUI
             rulesetSelector.Current.BindTo(ruleset);
         }
 
-        private float depth;
-        private Drawable currentScreen;
-        private ScheduledDelegate scheduledHide;
-
-        private void trySettingScreen(Type screenType)
+        private void loadScreen(Screen screen)
         {
-            if (currentScreen is PerformanceCalculatorScreen screen)
-            {
-                if (screen.ShouldShowConfirmationDialogOnSwitch)
-                {
-                    dialogOverlay.Push(new ConfirmDialog("Are you sure?", () =>
-                    {
-                        setScreen(screenType);
-                    }));
-                }
-                else
-                {
-                    setScreen(screenType);
-                }
-            }
-        }
-
-        private void setScreen(Type screenType)
-        {
-            var target = screens.FirstOrDefault(s => s.GetType() == screenType);
-
-            if (target == null || currentScreen == target) return;
-
-            if (scheduledHide?.Completed == false)
-            {
-                scheduledHide.RunTask();
-                scheduledHide.Cancel(); // see https://github.com/ppy/osu-framework/issues/2967
-                scheduledHide = null;
-            }
-
-            var lastScreen = currentScreen;
-            currentScreen = target;
-
-            lastScreen?.Hide();
-
-            screens.ChangeChildDepth(currentScreen, depth--);
-            currentScreen.Show();
+            if (screenStack.CurrentScreen != null)
+                screenStack.Exit();
+            screenStack.Push(screen);
         }
     }
 }
