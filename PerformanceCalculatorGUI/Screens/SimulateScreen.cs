@@ -28,6 +28,7 @@ using osu.Game.Screens.Play.HUD;
 using osu.Game.Utils;
 using osuTK;
 using PerformanceCalculatorGUI.Components;
+using PerformanceCalculatorGUI.Configuration;
 using PerformanceCalculatorGUI.Screens.ObjectInspection;
 
 namespace PerformanceCalculatorGUI.Screens
@@ -80,7 +81,7 @@ namespace PerformanceCalculatorGUI.Screens
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(SettingsManager configManager)
         {
             InternalChildren = new Drawable[]
             {
@@ -89,7 +90,7 @@ namespace PerformanceCalculatorGUI.Screens
                     Name = "File selection",
                     RelativeSizeAxes = Axes.X,
                     Height = file_selection_container_height,
-                    Child = beatmapTextBox = new FileChooserLabelledTextBox(".osu")
+                    Child = beatmapTextBox = new FileChooserLabelledTextBox(configManager.GetBindable<string>(Settings.DefaultPath), ".osu")
                     {
                         Label = "Beatmap",
                         FixedLabelWidth = 160f,
@@ -349,12 +350,12 @@ namespace PerformanceCalculatorGUI.Screens
                 HotReloadCallbackReceiver.CompilationFinished += _ => Schedule(calculateDifficulty);
         }
 
-        public override void Hide()
+        protected override void Dispose(bool isDisposing)
         {
-            objectInspector?.Hide();
-            userModsSelectOverlay.Hide();
-            beatmapTextBox.Current.Value = string.Empty;
-            base.Hide();
+            modSettingChangeTracker?.Dispose();
+            appliedMods.Value = Array.Empty<Mod>();
+
+            base.Dispose(isDisposing);
         }
 
         private ModSettingChangeTracker modSettingChangeTracker;
@@ -435,13 +436,13 @@ namespace PerformanceCalculatorGUI.Screens
                 countMeh = mehsTextBox.Value.Value;
             }
 
-            var score = LegacyHelper.AdjustManiaScore(scoreTextBox.Value.Value, appliedMods.Value);
+            var score = RulesetHelper.AdjustManiaScore(scoreTextBox.Value.Value, appliedMods.Value);
 
-            var statistics = LegacyHelper.GenerateHitResultsForRuleset(ruleset.Value, accuracyTextBox.Value.Value / 100.0, working.GetPlayableBeatmap(ruleset.Value, appliedMods.Value), missesTextBox.Value.Value, countMeh, countGood);
+            var statistics = RulesetHelper.GenerateHitResultsForRuleset(ruleset.Value, accuracyTextBox.Value.Value / 100.0, working.GetPlayableBeatmap(ruleset.Value, appliedMods.Value), missesTextBox.Value.Value, countMeh, countGood);
 
             var performanceCalculator = ruleset.Value.CreateInstance().CreatePerformanceCalculator(difficultyAttributes, new ScoreInfo
             {
-                Accuracy = LegacyHelper.GetAccuracyForRuleset(ruleset.Value, statistics),
+                Accuracy = RulesetHelper.GetAccuracyForRuleset(ruleset.Value, statistics),
                 MaxCombo = comboTextBox.Value.Value,
                 Statistics = statistics,
                 Mods = appliedMods.Value.ToArray(),

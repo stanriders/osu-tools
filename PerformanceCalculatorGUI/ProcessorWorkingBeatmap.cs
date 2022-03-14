@@ -11,7 +11,6 @@ using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Formats;
 using osu.Game.IO;
 using osu.Game.Skinning;
-using PerformanceCalculatorGUI.API;
 
 namespace PerformanceCalculatorGUI
 {
@@ -38,7 +37,7 @@ namespace PerformanceCalculatorGUI
         {
             this.beatmap = beatmap;
 
-            beatmap.BeatmapInfo.Ruleset = LegacyHelper.GetRulesetFromLegacyID(beatmap.BeatmapInfo.Ruleset.OnlineID).RulesetInfo;
+            beatmap.BeatmapInfo.Ruleset = RulesetHelper.GetRulesetFromLegacyID(beatmap.BeatmapInfo.Ruleset.OnlineID).RulesetInfo;
 
             if (beatmapId.HasValue)
                 beatmap.BeatmapInfo.OnlineID = beatmapId.Value;

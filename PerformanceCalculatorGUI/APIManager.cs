@@ -1,12 +1,15 @@
-﻿
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// See the LICENCE file in the repository root for full licence text.
+
 using System.Net.Http;
 using System.Threading.Tasks;
 using osu.Framework.Bindables;
 using osu.Framework.IO.Network;
 using osu.Game.Online;
 using osu.Game.Online.API;
+using PerformanceCalculatorGUI.Configuration;
 
-namespace PerformanceCalculatorGUI.API
+namespace PerformanceCalculatorGUI
 {
     internal class APIManager
     {
@@ -17,10 +20,10 @@ namespace PerformanceCalculatorGUI.API
 
         private OAuthToken token;
 
-        public APIManager(APIConfigManager configManager)
+        public APIManager(SettingsManager configManager)
         {
-            clientIdBindable = configManager.GetBindable<string>(APISettings.ClientId);
-            clientSecretBindable = configManager.GetBindable<string>(APISettings.ClientSecret);
+            clientIdBindable = configManager.GetBindable<string>(Settings.ClientId);
+            clientSecretBindable = configManager.GetBindable<string>(Settings.ClientSecret);
         }
 
         public async Task<T> GetJsonFromApi<T>(string request)
