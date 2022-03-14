@@ -34,7 +34,16 @@ namespace PerformanceCalculatorGUI
         {
             Ruleset.Value = new OsuRuleset().RulesetInfo;
 
+            var loginOverlay = new LoginOverlay
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Y = PerformanceCalculatorSceneManager.CONTROL_AREA_HEIGHT
+            };
+
             var dialogOverlay = new DialogOverlay();
+
+            dependencies.CacheAs(loginOverlay);
             dependencies.CacheAs(dialogOverlay);
 
             AddRange(new Drawable[]
@@ -44,6 +53,7 @@ namespace PerformanceCalculatorGUI
                     RelativeSizeAxes = Axes.Both,
                     Child = new PerformanceCalculatorSceneManager()
                 },
+                loginOverlay,
                 dialogOverlay
             });
         }
