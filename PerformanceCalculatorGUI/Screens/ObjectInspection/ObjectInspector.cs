@@ -77,7 +77,6 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
             {
                 Origin = Anchor.Centre,
                 Anchor = Anchor.Centre,
-                Size = new Vector2(0.95f),
                 Masking = true,
                 CornerRadius = 15f,
                 RelativeSizeAxes = Axes.Both,
@@ -170,6 +169,18 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
         {
             base.Update();
             clock.ProcessFrame();
+        }
+
+        protected override void PopIn()
+        {
+            base.PopIn();
+            this.FadeIn();
+        }
+
+        protected override void PopOut()
+        {
+            base.PopOut();
+            this.FadeOut();
         }
 
         protected override bool OnKeyDown(KeyDownEvent e)
