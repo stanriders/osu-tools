@@ -9,6 +9,7 @@ using osu.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
 using osu.Framework.Bindables;
+using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -61,6 +62,11 @@ namespace PerformanceCalculatorGUI.Screens
         private LimitedLabelledNumberBox goodsTextBox;
         private LimitedLabelledNumberBox mehsTextBox;
         private SwitchButton fullScoreDataSwitch;
+
+        private HitResultsContainer hitResultsContainer;
+
+        [Cached]
+        private Bindable<Dictionary<HitResult, Bindable<int>>> hitResults = new();
 
         private DifficultyAttributes difficultyAttributes;
         private FillFlowContainer difficultyAttributesContainer;
@@ -213,6 +219,11 @@ namespace PerformanceCalculatorGUI.Screens
                                                     Origin = Anchor.TopLeft,
                                                     Height = 20,
                                                     Text = "Score params"
+                                                },
+                                                hitResultsContainer = new HitResultsContainer()
+                                                {
+                                                    RelativeSizeAxes = Axes.X,
+                                                    AutoSizeAxes = Axes.Y,
                                                 },
                                                 accuracyContainer = new GridContainer
                                                 {
@@ -807,6 +818,13 @@ namespace PerformanceCalculatorGUI.Screens
             resetMods();
             calculateDifficulty();
             calculatePerformance();
+
+            hitResults.Value?.Values.ForEach(x => x.UnbindAll());
+
+            var rulesetHitResults = ruleset.Value.CreateInstance().GetHitResults();
+
+            hitResults.Value = rulesetHitResults.ToDictionary(x => x.result, x => new Bindable<int>());
+            hitResultsContainer.HitResultsNames.Value = rulesetHitResults;
             populateScoreParams();
         }
 
