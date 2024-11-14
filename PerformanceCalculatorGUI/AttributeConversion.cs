@@ -11,13 +11,6 @@ namespace PerformanceCalculatorGUI
 {
     internal static class AttributeConversion
     {
-        public static Dictionary<string, object> ToDictionary(DifficultyAttributes attributes)
-        {
-            var attributeValues = JsonConvert.DeserializeObject<Dictionary<string, object>>(JsonConvert.SerializeObject(attributes)) ?? new Dictionary<string, object>();
-
-            return attributeValues.Select(x => new KeyValuePair<string, object>(x.Key.Humanize().ToLowerInvariant(), x.Value)).ToDictionary(x => x.Key, y => y.Value);
-        }
-
         public static Dictionary<string, object> ToDictionary(PerformanceAttributes attributes)
         {
             var attributeValues = JsonConvert.DeserializeObject<Dictionary<string, object>>(JsonConvert.SerializeObject(attributes)) ?? new Dictionary<string, object>();

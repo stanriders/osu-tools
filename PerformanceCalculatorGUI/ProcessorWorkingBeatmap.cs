@@ -5,12 +5,14 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using osu.Framework.Audio;
 using osu.Framework.Audio.Track;
 using osu.Framework.Graphics.Textures;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Formats;
 using osu.Game.IO;
+using osu.Game.Online;
 using osu.Game.Rulesets.Objects.Types;
 using osu.Game.Skinning;
 using FileWebRequest = osu.Framework.IO.Network.FileWebRequest;
@@ -24,6 +26,8 @@ namespace PerformanceCalculatorGUI
     {
         private readonly Beatmap beatmap;
         private readonly AudioManager audioManager;
+
+        public static readonly EndpointConfiguration ENDPOINT_CONFIGURATION = new ProductionEndpointConfiguration();
 
         /// <summary>
         /// Constructs a new <see cref="ProcessorWorkingBeatmap"/> from a .osu file.
@@ -77,7 +81,8 @@ namespace PerformanceCalculatorGUI
 
                 try
                 {
-                    new FileWebRequest(cachePath, $"{APIManager.ENDPOINT_CONFIGURATION.WebsiteRootUrl}/osu/{beatmapId}").Perform();
+                    new FileWebRequest(cachePath, $"{ENDPOINT_CONFIGURATION.WebsiteRootUrl}/osu/{beatmapId}").Perform();
+                    Thread.Sleep(500);
                 }
                 catch (WebException)
                 {

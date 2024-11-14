@@ -6,29 +6,29 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using osu.Framework;
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Events;
 using osu.Framework.Logging;
+using osu.Framework.Screens;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Overlays;
-using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
-using osuTK.Graphics;
+using osu.Game.Rulesets.Osu;
+using osu.Game.Rulesets.Scoring;
+using osu.Game.Users;
 using osuTK.Input;
 using PerformanceCalculatorGUI.Components;
-using PerformanceCalculatorGUI.Components.TextBoxes;
 using PerformanceCalculatorGUI.Configuration;
+using SQLite;
 using ButtonState = PerformanceCalculatorGUI.Components.ButtonState;
 
 namespace PerformanceCalculatorGUI.Screens
 {
-    public partial class ProfileScreen : PerformanceCalculatorScreen
+    public partial class ProfileScreen : Screen
     {
         [Cached]
         private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Plum);
@@ -36,39 +36,22 @@ namespace PerformanceCalculatorGUI.Screens
         private StatefulButton calculationButton;
         private VerboseLoadingLayer loadingLayer;
 
-        private GridContainer layout;
-
         private FillFlowContainer<ExtendedProfileScore> scores;
 
-        private LabelledTextBox usernameTextBox;
-        private Container userPanelContainer;
         private UserCard userPanel;
 
-        private string currentUser;
-
         private CancellationTokenSource calculationCancellatonToken;
-
-        private OverlaySortTabControl<ProfileSortCriteria> sortingTabControl;
-        private readonly Bindable<ProfileSortCriteria> sorting = new Bindable<ProfileSortCriteria>(ProfileSortCriteria.Local);
 
         [Resolved]
         private NotificationDisplay notificationDisplay { get; set; }
 
         [Resolved]
-        private APIManager apiManager { get; set; }
-
-        [Resolved]
-        private Bindable<RulesetInfo> ruleset { get; set; }
-
-        [Resolved]
         private SettingsManager configManager { get; set; }
 
-        [Resolved]
-        private RulesetStore rulesets { get; set; }
-
-        public override bool ShouldShowConfirmationDialogOnSwitch => false;
-
         private const float username_container_height = 40;
+        private const int user_id = 5100305;
+
+        private LabelledNumberBox scoreAmountNumberBox;
 
         public ProfileScreen()
         {
@@ -78,17 +61,23 @@ namespace PerformanceCalculatorGUI.Screens
         [BackgroundDependencyLoader]
         private void load()
         {
+            var player = new APIUser()
+            {
+                Username = "vetochka",
+                Id = user_id,
+                AvatarUrl = "https://i.ytimg.com/vi/YFB_Dms-_Js/hqdefault.jpg",
+                CountryCode = CountryCode.RU
+            };
+
             InternalChildren = new Drawable[]
             {
-                layout = new GridContainer
+                new GridContainer
                 {
                     RelativeSizeAxes = Axes.Both,
                     ColumnDimensions = new[] { new Dimension() },
                     RowDimensions = new[]
                     {
                         new Dimension(GridSizeMode.Absolute, username_container_height),
-                        new Dimension(GridSizeMode.Absolute),
-                        new Dimension(GridSizeMode.AutoSize),
                         new Dimension()
                     },
                     Content = new[]
@@ -103,6 +92,7 @@ namespace PerformanceCalculatorGUI.Screens
                                 ColumnDimensions = new[]
                                 {
                                     new Dimension(),
+                                    new Dimension(GridSizeMode.Absolute, 200),
                                     new Dimension(GridSizeMode.AutoSize)
                                 },
                                 RowDimensions = new[]
@@ -113,50 +103,30 @@ namespace PerformanceCalculatorGUI.Screens
                                 {
                                     new Drawable[]
                                     {
-                                        usernameTextBox = new ExtendedLabelledTextBox
+                                        new Container
                                         {
                                             RelativeSizeAxes = Axes.X,
+                                            AutoSizeAxes = Axes.Y,
+                                            Child = userPanel = new UserCard(player)
+                                            {
+                                                RelativeSizeAxes = Axes.X
+                                            }
+                                        },
+                                        scoreAmountNumberBox = new LabelledNumberBox()
+                                        {
+                                            Label = "Scores",
                                             Anchor = Anchor.TopLeft,
-                                            Label = "Username",
-                                            PlaceholderText = "peppy",
-                                            CommitOnFocusLoss = false
+                                            PlaceholderText = "0",
                                         },
                                         calculationButton = new StatefulButton("Start calculation")
                                         {
                                             Width = 150,
                                             Height = username_container_height,
-                                            Action = () => { calculateProfile(usernameTextBox.Current.Value); }
+                                            Action = calculateProfile
                                         }
                                     }
                                 }
                             },
-                        },
-                        new Drawable[]
-                        {
-                            userPanelContainer = new Container
-                            {
-                                RelativeSizeAxes = Axes.X,
-                                AutoSizeAxes = Axes.Y
-                            }
-                        },
-                        new Drawable[]
-                        {
-                            new Container
-                            {
-                                RelativeSizeAxes = Axes.X,
-                                AutoSizeAxes = Axes.Y,
-                                Children = new Drawable[]
-                                {
-                                    sortingTabControl = new OverlaySortTabControl<ProfileSortCriteria>
-                                    {
-                                        Anchor = Anchor.CentreRight,
-                                        Origin = Anchor.CentreRight,
-                                        Margin = new MarginPadding { Right = 22 },
-                                        Current = { BindTarget = sorting },
-                                        Alpha = 0
-                                    }
-                                }
-                            }
                         },
                         new Drawable[]
                         {
@@ -178,22 +148,10 @@ namespace PerformanceCalculatorGUI.Screens
                     RelativeSizeAxes = Axes.Both
                 }
             };
-
-            usernameTextBox.OnCommit += (_, _) => { calculateProfile(usernameTextBox.Current.Value); };
-            sorting.ValueChanged += e => { updateSorting(e.NewValue); };
-
-            if (RuntimeInfo.IsDesktop)
-                HotReloadCallbackReceiver.CompilationFinished += _ => Schedule(() => { calculateProfile(currentUser); });
         }
 
-        private void calculateProfile(string username)
+        private void calculateProfile()
         {
-            if (string.IsNullOrEmpty(username))
-            {
-                usernameTextBox.FlashColour(Color4.Red, 1);
-                return;
-            }
-
             calculationCancellatonToken?.Cancel();
             calculationCancellatonToken?.Dispose();
 
@@ -209,55 +167,43 @@ namespace PerformanceCalculatorGUI.Screens
             {
                 Schedule(() => loadingLayer.Text.Value = "Getting user data...");
 
-                var player = await apiManager.GetJsonFromApi<APIUser>($"users/{username}/{ruleset.Value.ShortName}");
-
-                currentUser = player.Username;
-
-                Schedule(() =>
-                {
-                    if (userPanel != null)
-                        userPanelContainer.Remove(userPanel, true);
-
-                    userPanelContainer.Add(userPanel = new UserCard(player)
-                    {
-                        RelativeSizeAxes = Axes.X
-                    });
-
-                    sortingTabControl.Alpha = 1.0f;
-                    sortingTabControl.Current.Value = ProfileSortCriteria.Local;
-
-                    layout.RowDimensions = new[]
-                    {
-                        new Dimension(GridSizeMode.Absolute, username_container_height),
-                        new Dimension(GridSizeMode.AutoSize),
-                        new Dimension(GridSizeMode.AutoSize),
-                        new Dimension()
-                    };
-                });
-
                 if (token.IsCancellationRequested)
                     return;
 
                 var plays = new List<ExtendedScore>();
 
-                var rulesetInstance = ruleset.Value.CreateInstance();
+                var rulesetInstance = new OsuRuleset();
 
-                Schedule(() => loadingLayer.Text.Value = $"Calculating {player.Username} top scores...");
+                Schedule(() => loadingLayer.Text.Value = "Calculating top scores...");
 
-                var apiScores = await apiManager.GetJsonFromApi<List<SoloScoreInfo>>($"users/{player.OnlineID}/scores/best?mode={ruleset.Value.ShortName}&limit=100");
+                var db = new SQLiteConnection("osu_scores_high.vetochka.db");
+
+                var apiScores = db.Table<DbScore>().OrderByDescending(x => x.pp);
+
+                if (int.TryParse(scoreAmountNumberBox.Current.Value, out var amount) && amount > 0)
+                    apiScores = apiScores.Take(amount);
 
                 foreach (var score in apiScores)
                 {
                     if (token.IsCancellationRequested)
                         return;
 
-                    var working = ProcessorWorkingBeatmap.FromFileOrId(score.BeatmapID.ToString(), cachePath: configManager.GetBindable<string>(Settings.CachePath).Value);
+                    var working = ProcessorWorkingBeatmap.FromFileOrId(score.beatmap_id.ToString(), cachePath: configManager.GetBindable<string>(Settings.CachePath).Value);
 
                     Schedule(() => loadingLayer.Text.Value = $"Calculating {working.Metadata}");
 
-                    Mod[] mods = score.Mods.Select(x => x.ToMod(rulesetInstance)).ToArray();
+                    Mod[] mods = rulesetInstance.ConvertFromLegacyMods(score.enabled_mods).ToArray();
 
-                    var scoreInfo = score.ToScoreInfo(rulesets, working.BeatmapInfo);
+                    score.BeatmapInfo = working.BeatmapInfo;
+                    score.Accuracy = RulesetHelper.GetAccuracyForRuleset(rulesetInstance.RulesetInfo, new Dictionary<HitResult, int>()
+                    {
+                        { HitResult.Great, score.count300 },
+                        { HitResult.Ok, score.count100 },
+                        { HitResult.Meh, score.count50 },
+                        { HitResult.Miss, score.countmiss }
+                    });
+
+                    var scoreInfo = score.ToScoreInfo(mods, working.BeatmapInfo);
 
                     var parsedScore = new ProcessorScoreDecoder(working).Parse(scoreInfo);
 
@@ -265,9 +211,9 @@ namespace PerformanceCalculatorGUI.Screens
                     var difficultyAttributes = difficultyCalculator.Calculate(RulesetHelper.ConvertToLegacyDifficultyAdjustmentMods(rulesetInstance, mods));
                     var performanceCalculator = rulesetInstance.CreatePerformanceCalculator();
 
-                    var livePp = score.PP ?? 0.0;
+                    var livePp = score.pp;
                     var perfAttributes = await performanceCalculator?.CalculateAsync(parsedScore.ScoreInfo, difficultyAttributes, token)!;
-                    score.PP = perfAttributes?.Total ?? 0.0;
+                    score.pp = perfAttributes?.Total ?? 0.0;
 
                     var extendedScore = new ExtendedScore(score, livePp, perfAttributes);
                     plays.Add(extendedScore);
@@ -278,7 +224,7 @@ namespace PerformanceCalculatorGUI.Screens
                 if (token.IsCancellationRequested)
                     return;
 
-                var localOrdered = plays.OrderByDescending(x => x.SoloScore.PP).ToList();
+                var localOrdered = plays.OrderByDescending(x => x.SoloScore.pp).ToList();
                 var liveOrdered = plays.OrderByDescending(x => x.LivePP).ToList();
 
                 Schedule(() =>
@@ -291,25 +237,17 @@ namespace PerformanceCalculatorGUI.Screens
                     }
                 });
 
-                decimal totalLocalPP = 0;
+                double totalLocalPP = 0;
                 for (var i = 0; i < localOrdered.Count; i++)
-                    totalLocalPP += (decimal)(Math.Pow(0.95, i) * (localOrdered[i].SoloScore.PP ?? 0));
+                    totalLocalPP += Math.Pow(0.95, i) * (localOrdered[i].SoloScore.pp);
 
-                decimal totalLivePP = player.Statistics.PP ?? (decimal)0.0;
-
-                decimal nonBonusLivePP = 0;
-                for (var i = 0; i < liveOrdered.Count; i++)
-                    nonBonusLivePP += (decimal)(Math.Pow(0.95, i) * liveOrdered[i].LivePP);
-
-                //todo: implement properly. this is pretty damn wrong.
-                var playcountBonusPP = (totalLivePP - nonBonusLivePP);
+                var playcountBonusPP = (417.0 - 1.0 / 3.0) * (1.0 - Math.Pow(0.995, scores.Count));
                 totalLocalPP += playcountBonusPP;
 
                 Schedule(() =>
                 {
                     userPanel.Data.Value = new UserCardData
                     {
-                        LivePP = totalLivePP,
                         LocalPP = totalLocalPP,
                         PlaycountPP = playcountBonusPP
                     };
@@ -345,37 +283,6 @@ namespace PerformanceCalculatorGUI.Screens
             }
 
             return base.OnKeyDown(e);
-        }
-
-        private void updateSorting(ProfileSortCriteria sortCriteria)
-        {
-            if (!scores.Children.Any())
-                return;
-
-            ExtendedProfileScore[] sortedScores;
-
-            switch (sortCriteria)
-            {
-                case ProfileSortCriteria.Live:
-                    sortedScores = scores.Children.OrderByDescending(x => x.Score.LivePP).ToArray();
-                    break;
-
-                case ProfileSortCriteria.Local:
-                    sortedScores = scores.Children.OrderByDescending(x => x.Score.PerformanceAttributes.Total).ToArray();
-                    break;
-
-                case ProfileSortCriteria.Difference:
-                    sortedScores = scores.Children.OrderByDescending(x => x.Score.PerformanceAttributes.Total - x.Score.LivePP).ToArray();
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(sortCriteria), sortCriteria, null);
-            }
-
-            for (int i = 0; i < sortedScores.Length; i++)
-            {
-                scores.SetLayoutPosition(sortedScores[i], i);
-            }
         }
     }
 }

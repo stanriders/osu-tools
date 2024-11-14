@@ -15,22 +15,18 @@ using osu.Game.Online.API.Requests.Responses;
 using osuTK;
 using osu.Game.Users;
 using osu.Game.Users.Drawables;
-using PerformanceCalculatorGUI.Components.TextBoxes;
 
 namespace PerformanceCalculatorGUI.Components
 {
     public struct UserCardData
     {
-        public decimal LivePP { get; set; }
-        public decimal LocalPP { get; set; }
-        public decimal PlaycountPP { get; set; }
+        public double LocalPP { get; set; }
+        public double PlaycountPP { get; set; }
     }
 
     public partial class UserCard : UserListPanel
     {
-        private OsuSpriteText liveLabel;
         private OsuSpriteText localLabel;
-        private OsuSpriteText differenceLabel;
         private OsuSpriteText playcountLabel;
 
         public Bindable<UserCardData> Data = new Bindable<UserCardData>();
@@ -40,7 +36,6 @@ namespace PerformanceCalculatorGUI.Components
         {
             RelativeSizeAxes = Axes.X;
             Height = 40;
-            CornerRadius = ExtendedLabelledTextBox.CORNER_RADIUS;
         }
 
         [BackgroundDependencyLoader]
@@ -53,9 +48,7 @@ namespace PerformanceCalculatorGUI.Components
 
             Data.ValueChanged += val =>
             {
-                liveLabel.Text = $"Live: {val.NewValue.LivePP:N1} pp";
                 localLabel.Text = $"New: {val.NewValue.LocalPP:N1} pp";
-                differenceLabel.Text = $"{val.NewValue.LocalPP - val.NewValue.LivePP:+0.0;-0.0;-}";
                 playcountLabel.Text = $"{val.NewValue.PlaycountPP:N1} from playcount";
             };
 
@@ -89,7 +82,7 @@ namespace PerformanceCalculatorGUI.Components
                                 Masking = true,
                                 Anchor = Anchor.CentreLeft,
                                 Origin = Anchor.CentreLeft,
-                                CornerRadius = ExtendedLabelledTextBox.CORNER_RADIUS,
+                                CornerRadius = 0.6f,
                                 Size = new Vector2(40)
                             },
                             CreateFlag().With(flag =>
@@ -129,12 +122,6 @@ namespace PerformanceCalculatorGUI.Components
                                         Origin = Anchor.CentreRight,
                                         Font = OsuFont.GetFont(size: 14, weight: FontWeight.Bold),
                                     },
-                                    liveLabel = new OsuSpriteText
-                                    {
-                                        Anchor = Anchor.CentreRight,
-                                        Origin = Anchor.CentreRight,
-                                        Font = OsuFont.GetFont(size: 14)
-                                    }
                                 }
                             },
                             new FillFlowContainer
@@ -146,13 +133,6 @@ namespace PerformanceCalculatorGUI.Components
                                 Width = 100,
                                 Children = new[]
                                 {
-                                    differenceLabel = new OsuSpriteText
-                                    {
-                                        Colour = Colours.GrayA,
-                                        Font = OsuFont.GetFont(size: 10),
-                                        Anchor = Anchor.CentreLeft,
-                                        Origin = Anchor.CentreLeft
-                                    },
                                     playcountLabel = new OsuSpriteText
                                     {
                                         Colour = Colours.GrayA,

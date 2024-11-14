@@ -2,23 +2,18 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Cursor;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
 using osu.Game.Beatmaps.Drawables.Cards;
 using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Overlays;
-using osu.Game.Overlays.Dialog;
-using osu.Game.Overlays.Toolbar;
-using osu.Game.Rulesets;
 using osuTK;
 using osuTK.Graphics;
 using PerformanceCalculatorGUI.Components;
@@ -30,17 +25,9 @@ namespace PerformanceCalculatorGUI
     {
         private ScreenStack screenStack;
 
-        private ToolbarRulesetSelector rulesetSelector;
-
         private Box hoverGradientBox;
 
         public const float CONTROL_AREA_HEIGHT = 45;
-
-        [Resolved]
-        private Bindable<RulesetInfo> ruleset { get; set; }
-
-        [Resolved]
-        private DialogOverlay dialogOverlay { get; set; }
 
         [Cached]
         private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Blue);
@@ -89,31 +76,6 @@ namespace PerformanceCalculatorGUI
                                         },
                                         new FillFlowContainer
                                         {
-                                            RelativeSizeAxes = Axes.Y,
-                                            Direction = FillDirection.Horizontal,
-                                            AutoSizeAxes = Axes.X,
-                                            Children = new Drawable[]
-                                            {
-                                                new ScreenSelectionButton("Beatmap", FontAwesome.Solid.Music)
-                                                {
-                                                    Action = () => setScreen(new SimulateScreen())
-                                                },
-                                                new ScreenSelectionButton("Profile", FontAwesome.Solid.User)
-                                                {
-                                                    Action = () => setScreen(new ProfileScreen())
-                                                },
-                                                new ScreenSelectionButton("Player Leaderboard", FontAwesome.Solid.List)
-                                                {
-                                                    Action = () => setScreen(new LeaderboardScreen())
-                                                },
-                                                new ScreenSelectionButton("Beatmap Leaderboard", FontAwesome.Solid.ListAlt)
-                                                {
-                                                    Action = () => setScreen(new BeatmapLeaderboardScreen())
-                                                },
-                                            }
-                                        },
-                                        new FillFlowContainer
-                                        {
                                             Anchor = Anchor.TopRight,
                                             Origin = Anchor.TopRight,
                                             Direction = FillDirection.Horizontal,
@@ -122,7 +84,6 @@ namespace PerformanceCalculatorGUI
                                             Spacing = new Vector2(5),
                                             Children = new Drawable[]
                                             {
-                                                rulesetSelector = new ToolbarRulesetSelector(),
                                                 new SettingsButton()
                                             }
                                         },
@@ -154,35 +115,7 @@ namespace PerformanceCalculatorGUI
                     }
                 }
             };
-
-            setScreen(new SimulateScreen());
-        }
-
-        protected override void LoadComplete()
-        {
-            base.LoadComplete();
-
-            rulesetSelector.Current.BindTo(ruleset);
-        }
-
-        private void setScreen(Screen screen)
-        {
-            if (screenStack.CurrentScreen != null)
-            {
-                if (screenStack.CurrentScreen is PerformanceCalculatorScreen { ShouldShowConfirmationDialogOnSwitch: true })
-                {
-                    dialogOverlay.Push(new ConfirmDialog("Are you sure?", () =>
-                    {
-                        screenStack.Exit();
-                        screenStack.Push(screen);
-                    }));
-                    return;
-                }
-
-                screenStack.Exit();
-            }
-
-            screenStack.Push(screen);
+            screenStack.Push(new ProfileScreen());
         }
     }
 }
