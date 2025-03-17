@@ -4,59 +4,37 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using osu.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Logging;
 using osu.Game.Graphics.Containers;
-using osu.Game.Graphics.UserInterface;
-using osu.Game.Online.API.Requests;
-using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Overlays;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Users;
+using osu.Game.Rulesets.Scoring;
+using osu.Game.Scoring;
 using PerformanceCalculatorGUI.Components;
-using PerformanceCalculatorGUI.Components.TextBoxes;
 using PerformanceCalculatorGUI.Configuration;
 
 namespace PerformanceCalculatorGUI.Screens
 {
-    public class UserLeaderboardData
-    {
-        public decimal LivePP { get; set; }
-        public decimal LocalPP { get; set; }
-
-        public List<ExtendedScore> Scores { get; set; }
-    }
-
     public partial class LeaderboardScreen : PerformanceCalculatorScreen
     {
-        public enum Tabs
-        {
-            Players,
-            Scores
-        }
-
         [Cached]
         private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Green);
 
-        private LimitedLabelledNumberBox playerAmountTextBox;
-        private LimitedLabelledNumberBox pageTextBox;
-        private StatefulButton calculationButton;
         private VerboseLoadingLayer loadingLayer;
 
-        private Container players;
         private FillFlowContainer scores;
-        private OsuTabControl<Tabs> tabs;
 
         private CancellationTokenSource calculationCancellatonToken;
 
-        public override bool ShouldShowConfirmationDialogOnSwitch => players.Count > 0;
+        public override bool ShouldShowConfirmationDialogOnSwitch => false;
 
         [Resolved]
         private NotificationDisplay notificationDisplay { get; set; }
@@ -68,13 +46,7 @@ namespace PerformanceCalculatorGUI.Screens
         private Bindable<RulesetInfo> ruleset { get; set; }
 
         [Resolved]
-        private RulesetStore rulesets { get; set; }
-
-        [Resolved]
         private SettingsManager configManager { get; set; }
-
-        private const int settings_height = 40;
-        private const int tabs_height = 20;
 
         public LeaderboardScreen()
         {
@@ -86,101 +58,17 @@ namespace PerformanceCalculatorGUI.Screens
         {
             InternalChildren = new Drawable[]
             {
-                new GridContainer
+                new OsuScrollContainer
                 {
                     RelativeSizeAxes = Axes.Both,
-                    ColumnDimensions = new[] { new Dimension() },
-                    RowDimensions = new[] { new Dimension(GridSizeMode.Absolute, 40), new Dimension() },
-                    Content = new[]
+                    Children = new Drawable[]
                     {
-                        new Drawable[]
+                        scores = new FillFlowContainer
                         {
-                            new GridContainer
-                            {
-                                Name = "Settings",
-                                Height = settings_height,
-                                RelativeSizeAxes = Axes.X,
-                                ColumnDimensions = new[]
-                                {
-                                    new Dimension(),
-                                    new Dimension(),
-                                    new Dimension(GridSizeMode.AutoSize)
-                                },
-                                RowDimensions = new[]
-                                {
-                                    new Dimension(GridSizeMode.AutoSize)
-                                },
-                                Content = new[]
-                                {
-                                    new Drawable[]
-                                    {
-                                        playerAmountTextBox = new LimitedLabelledNumberBox
-                                        {
-                                            RelativeSizeAxes = Axes.X,
-                                            Anchor = Anchor.TopLeft,
-                                            Label = "Amount",
-                                            PlaceholderText = "10",
-                                            MinValue = 1,
-                                            MaxValue = 50,
-                                            Value = { Value = 10 },
-                                            CommitOnFocusLoss = false
-                                        },
-                                        pageTextBox = new LimitedLabelledNumberBox
-                                        {
-                                            RelativeSizeAxes = Axes.X,
-                                            Anchor = Anchor.TopLeft,
-                                            Label = "Page",
-                                            PlaceholderText = "1",
-                                            MinValue = 1,
-                                            Value = { Value = 1 },
-                                            CommitOnFocusLoss = false
-                                        },
-                                        calculationButton = new StatefulButton("Start calculation")
-                                        {
-                                            Width = 150,
-                                            Height = settings_height,
-                                            Action = calculate
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        new Drawable[]
-                        {
-                            new Container
-                            {
-                                RelativeSizeAxes = Axes.Both,
-                                Children = new Drawable[]
-                                {
-                                    tabs = new OsuTabControl<Tabs>
-                                    {
-                                        Anchor = Anchor.TopCentre,
-                                        Origin = Anchor.TopCentre,
-                                        Height = tabs_height,
-                                        Width = 145,
-                                        IsSwitchable = true
-                                    },
-                                    new OsuScrollContainer
-                                    {
-                                        RelativeSizeAxes = Axes.Both,
-                                        Children = new Drawable[]
-                                        {
-                                            players = new Container
-                                            {
-                                                RelativeSizeAxes = Axes.Both
-                                            },
-                                            scores = new FillFlowContainer
-                                            {
-                                                Margin = new MarginPadding { Top = tabs_height },
-                                                RelativeSizeAxes = Axes.X,
-                                                AutoSizeAxes = Axes.Y,
-                                                Direction = FillDirection.Vertical,
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
+                            RelativeSizeAxes = Axes.X,
+                            AutoSizeAxes = Axes.Y,
+                            Direction = FillDirection.Vertical,
+                        }
                     }
                 },
                 loadingLayer = new VerboseLoadingLayer(true)
@@ -189,27 +77,10 @@ namespace PerformanceCalculatorGUI.Screens
                 }
             };
 
-            scores.Hide();
+            calculate();
 
-            tabs.Current.ValueChanged += e =>
-            {
-                switch (e.NewValue)
-                {
-                    case Tabs.Players:
-                    {
-                        scores.Hide();
-                        players.Show();
-                        break;
-                    }
-
-                    case Tabs.Scores:
-                    {
-                        scores.Show();
-                        players.Hide();
-                        break;
-                    }
-                }
-            };
+            if (RuntimeInfo.IsDesktop)
+                HotReloadCallbackReceiver.CompilationFinished += _ => Schedule(calculate);
         }
 
         protected override void Dispose(bool isDisposing)
@@ -227,9 +98,7 @@ namespace PerformanceCalculatorGUI.Screens
             calculationCancellatonToken?.Dispose();
 
             loadingLayer.Show();
-            calculationButton.State.Value = ButtonState.Loading;
 
-            players.Clear();
             scores.Clear();
 
             calculationCancellatonToken = new CancellationTokenSource();
@@ -237,47 +106,104 @@ namespace PerformanceCalculatorGUI.Screens
 
             Task.Run(async () =>
             {
-                Schedule(() => loadingLayer.Text.Value = "Getting leaderboard...");
+                Schedule(() => loadingLayer.Text.Value = "Calculating top scores...");
 
-                var leaderboard = await apiManager.GetJsonFromApi<GetTopUsersResponse>($"rankings/{ruleset.Value.ShortName}/performance?cursor[page]={pageTextBox.Value.Value - 1}").ConfigureAwait(false);
+                var apiScores = await apiManager.GetJsonFromApi<List<RXScore>>("scores?take=500").ConfigureAwait(false);
 
-                var calculatedPlayers = new List<LeaderboardUser>();
-                var calculatedScores = new List<ExtendedScore>();
+                var plays = new List<ExtendedScore>();
+                var rulesetInstance = ruleset.Value.CreateInstance();
 
-                for (int i = 0; i < playerAmountTextBox.Value.Value; i++)
+                foreach (var score in apiScores)
                 {
                     if (token.IsCancellationRequested)
                         return;
 
-                    var player = leaderboard.Users[i];
+                    var working = ProcessorWorkingBeatmap.FromFileOrId(score.BeatmapId.ToString(), cachePath: configManager.GetBindable<string>(Settings.CachePath).Value);
 
-                    Schedule(() => loadingLayer.Text.Value = $"Calculating {player.User.Username} top scores...");
+                    Schedule(() => loadingLayer.Text.Value = $"Calculating {working.Metadata}");
 
-                    var playerData = await calculatePlayer(player, token).ConfigureAwait(false);
+                    Mod[] mods = GetMods(rulesetInstance, score.Mods);
 
-                    calculatedPlayers.Add(new LeaderboardUser
+                    score.BeatmapInfo = working.BeatmapInfo;
+
+                    var scoreInfo = new ScoreInfo(working.BeatmapInfo, ruleset.Value)
                     {
-                        User = player.User,
-                        LocalPP = playerData.LocalPP,
-                        LivePP = playerData.LivePP,
-                        Difference = playerData.LocalPP - playerData.LivePP
-                    });
+                        Accuracy = score.Accuracy,
+                        MaxCombo = score.Combo,
+                        Statistics = new Dictionary<HitResult, int>
+                        {
+                            { HitResult.Great, score.Count300 },
+                            { HitResult.Ok, score.Count100 },
+                            { HitResult.Meh, score.Count50 },
+                            { HitResult.Miss, score.CountMiss }
+                        },
+                        Mods = mods,
+                        TotalScore = score.TotalScore
+                    };
 
-                    calculatedScores.AddRange(playerData.Scores);
+                    if (score.SliderEnds != null)
+                    {
+                        scoreInfo.Statistics.Add(HitResult.SliderTailHit, score.SliderEnds.Value);
+                    }
+
+                    if (score.SliderTicks != null)
+                    {
+                        scoreInfo.Statistics.Add(HitResult.LargeTickHit, score.SliderTicks.Value);
+                    }
+
+                    if (score.SpinnerBonus != null)
+                    {
+                        scoreInfo.Statistics.Add(HitResult.LargeBonus, score.SpinnerBonus.Value);
+                    }
+
+                    if (score.SpinnerSpins != null)
+                    {
+                        scoreInfo.Statistics.Add(HitResult.SmallBonus, score.SpinnerSpins.Value);
+                    }
+
+                    if (score.LegacySliderEnds != null)
+                    {
+                        scoreInfo.Statistics.Add(HitResult.SmallTickHit, score.LegacySliderEnds.Value);
+                    }
+
+                    if (score.LegacySliderEndMisses != null)
+                    {
+                        scoreInfo.Statistics.Add(HitResult.SmallTickMiss, score.LegacySliderEndMisses.Value);
+                    }
+
+                    if (score.SliderTickMisses != null)
+                    {
+                        scoreInfo.Statistics.Add(HitResult.LargeTickMiss, score.SliderTickMisses.Value);
+                    }
+
+                    var difficultyCalculator = rulesetInstance.CreateDifficultyCalculator(working);
+                    var difficultyAttributes = difficultyCalculator.Calculate(mods);
+                    var performanceCalculator = rulesetInstance.CreatePerformanceCalculator();
+                    if (performanceCalculator == null)
+                        continue;
+
+                    double? livePp = score.Pp;
+                    var perfAttributes = await performanceCalculator.CalculateAsync(scoreInfo, difficultyAttributes, token).ConfigureAwait(false);
+                    score.Pp = perfAttributes.Total;
+
+                    var extendedScore = new ExtendedScore(score, livePp, perfAttributes);
+                    plays.Add(extendedScore);
                 }
+
+                var localOrdered = plays.OrderByDescending(x => x.SoloScore.Pp).ToList();
+                var liveOrdered = plays.OrderByDescending(x => x.LivePP ?? 0).ToList();
 
                 Schedule(() =>
                 {
-                    var leaderboardTable = new LeaderboardTable(pageTextBox.Value.Value, calculatedPlayers.OrderByDescending(x => x.LocalPP).ToList())
+                    foreach (var play in plays)
                     {
-                        Margin = new MarginPadding { Top = tabs_height }
-                    };
-                    LoadComponent(leaderboardTable);
-                    players.Add(leaderboardTable);
+                        scores.Add(new ExtendedProfileScore(play));
 
-                    foreach (var calculatedScore in calculatedScores.OrderByDescending(x => x.PerformanceAttributes.Total))
-                    {
-                        scores.Add(new ExtendedProfileScore(calculatedScore));
+                        if (play.LivePP != null)
+                        {
+                            play.Position.Value = localOrdered.IndexOf(play) + 1;
+                            play.PositionChange.Value = liveOrdered.IndexOf(play) - localOrdered.IndexOf(play);
+                        }
                     }
                 });
             }, token).ContinueWith(t =>
@@ -289,82 +215,41 @@ namespace PerformanceCalculatorGUI.Screens
                 Schedule(() =>
                 {
                     loadingLayer.Hide();
-                    calculationButton.State.Value = ButtonState.Done;
                 });
             }, token);
         }
 
-        private async Task<UserLeaderboardData> calculatePlayer(UserStatistics player, CancellationToken token)
+        private static Mod[] GetMods(Ruleset ruleset, string[] modNames)
         {
-            if (token.IsCancellationRequested)
-                return new UserLeaderboardData();
+            var mods = new List<Mod>();
 
-            var plays = new List<ExtendedScore>();
-
-            var apiScores = await apiManager.GetJsonFromApi<List<SoloScoreInfo>>($"users/{player.User.OnlineID}/scores/best?mode={ruleset.Value.ShortName}&limit=100").ConfigureAwait(false);
-
-            var rulesetInstance = ruleset.Value.CreateInstance();
-
-            try
+            foreach (var modName in modNames)
             {
-                Parallel.ForEach(apiScores, new ParallelOptions { CancellationToken = token }, score =>
+                var mod = ruleset.CreateModFromAcronym(modName);
+
+                if (mod == null)
                 {
-                    try
+                    var modNameSplit = modName.Split("x");
+
+                    mod = ruleset.CreateModFromAcronym(modNameSplit[0]);
+
+                    if (mod is ModRateAdjust speedAdjustMod)
                     {
-                        var working = ProcessorWorkingBeatmap.FromFileOrId(score.BeatmapID.ToString(), cachePath: configManager.GetBindable<string>(Settings.CachePath).Value);
-
-                        Mod[] mods = score.Mods.Select(x => x.ToMod(rulesetInstance)).ToArray();
-
-                        var scoreInfo = score.ToScoreInfo(rulesets, working.BeatmapInfo);
-
-                        var parsedScore = new ProcessorScoreDecoder(working).Parse(scoreInfo);
-
-                        var difficultyCalculator = rulesetInstance.CreateDifficultyCalculator(working);
-                        var difficultyAttributes = difficultyCalculator.Calculate(mods);
-                        var performanceCalculator = rulesetInstance.CreatePerformanceCalculator();
-
-                        double? livePp = score.PP;
-                        var perfAttributes = performanceCalculator?.Calculate(parsedScore.ScoreInfo, difficultyAttributes);
-                        score.PP = perfAttributes?.Total ?? 0.0;
-
-                        var extendedScore = new ExtendedScore(score, livePp, perfAttributes);
-                        plays.Add(extendedScore);
+                        speedAdjustMod.SpeedChange.Value = double.Parse(modNameSplit[1]);
+                        mods.Add(speedAdjustMod);
                     }
-                    catch (Exception e)
+                    else
                     {
-                        if (e is WebException)
-                        {
-                            // web exception usually means we hit rate limiting in which case we wanna bail immediately
-                            throw;
-                        }
-
-                        Logger.Log(e.ToString(), level: LogLevel.Error);
-                        notificationDisplay.Display(new Notification(e.Message));
+                        throw new ArgumentException($"Invalid mod provided: {modName}");
                     }
-                });
+                }
+                else
+                {
+                    mods.Add(mod);
+                }
             }
-            catch (OperationCanceledException) { }
 
-            var localOrdered = plays.OrderByDescending(x => x.SoloScore.PP).ToList();
-            var liveOrdered = plays.OrderByDescending(x => x.LivePP ?? 0.0).ToList();
-
-            int index = 0;
-            decimal totalLocalPP = (decimal)(localOrdered.Select(x => x.SoloScore.PP).Sum(play => Math.Pow(0.95, index++) * play) ?? 0.0);
-            decimal totalLivePP = player.PP ?? (decimal)0.0;
-
-            index = 0;
-            decimal nonBonusLivePP = (decimal)liveOrdered.Select(x => x.LivePP ?? 0.0).Sum(play => Math.Pow(0.95, index++) * play);
-
-            //todo: implement properly. this is pretty damn wrong.
-            decimal playcountBonusPP = (totalLivePP - nonBonusLivePP);
-            totalLocalPP += playcountBonusPP;
-
-            return new UserLeaderboardData
-            {
-                LivePP = totalLivePP,
-                LocalPP = totalLocalPP,
-                Scores = plays
-            };
+            return mods.ToArray();
         }
     }
 }

@@ -59,7 +59,7 @@ namespace PerformanceCalculatorGUI.Components
                 playcountLabel.Text = $"{val.NewValue.PlaycountPP:N1} from playcount";
             };
 
-            Action = () => { host.OpenUrlExternally($"https://osu.ppy.sh/u/{User.Id}"); };
+            Action = () => { host.OpenUrlExternally($"https://rx.stanr.info/users/{User.Id}"); };
         }
 
         protected override Drawable CreateLayout()

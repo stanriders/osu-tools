@@ -21,6 +21,8 @@ using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Overlays;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Scoring;
+using osu.Game.Scoring;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
@@ -275,7 +277,7 @@ namespace PerformanceCalculatorGUI.Screens
                     return;
 
                 var plays = new List<ExtendedScore>();
-                var players = new List<APIUser>();
+                var players = new List<RXPlayer>();
                 var rulesetInstance = ruleset.Value.CreateInstance();
 
                 foreach (string username in currentUsers)
@@ -284,34 +286,78 @@ namespace PerformanceCalculatorGUI.Screens
                     {
                         Schedule(() => loadingLayer.Text.Value = $"Getting {username} user data...");
 
-                        var player = await apiManager.GetJsonFromApi<APIUser>($"users/{username}/{ruleset.Value.ShortName}").ConfigureAwait(false);
+                        var player = await apiManager.GetJsonFromApi<RXPlayer>($"players/{username}").ConfigureAwait(false);
+                        if (player == null)
+                            continue;
+
                         players.Add(player);
 
                         Schedule(() => loadingLayer.Text.Value = $"Calculating {player.Username} top scores...");
 
-                        var apiScores = await apiManager.GetJsonFromApi<List<SoloScoreInfo>>($"users/{player.OnlineID}/scores/best?mode={ruleset.Value.ShortName}&limit=100").ConfigureAwait(false);
-
-                        if (includePinnedCheckbox.Current.Value)
-                        {
-                            var pinnedScores = await apiManager.GetJsonFromApi<List<SoloScoreInfo>>($"users/{player.OnlineID}/scores/pinned?mode={ruleset.Value.ShortName}&limit=100")
-                                                               .ConfigureAwait(false);
-                            apiScores = apiScores.Concat(pinnedScores.Where(p => !apiScores.Any(b => b.ID == p.ID)).ToArray()).ToList();
-                        }
+                        var apiScores = await apiManager.GetJsonFromApi<List<RXScore>>($"players/{player.Id}/scores").ConfigureAwait(false);
 
                         foreach (var score in apiScores)
                         {
                             if (token.IsCancellationRequested)
                                 return;
 
-                            var working = ProcessorWorkingBeatmap.FromFileOrId(score.BeatmapID.ToString(), cachePath: configManager.GetBindable<string>(Settings.CachePath).Value);
+                            var working = ProcessorWorkingBeatmap.FromFileOrId(score.BeatmapId.ToString(), cachePath: configManager.GetBindable<string>(Settings.CachePath).Value);
 
                             Schedule(() => loadingLayer.Text.Value = $"Calculating {working.Metadata}");
 
-                            Mod[] mods = score.Mods.Select(x => x.ToMod(rulesetInstance)).ToArray();
+                            Mod[] mods = GetMods(rulesetInstance, score.Mods);
 
-                            var scoreInfo = score.ToScoreInfo(rulesets, working.BeatmapInfo);
+                            score.BeatmapInfo = working.BeatmapInfo;
 
-                            var parsedScore = new ProcessorScoreDecoder(working).Parse(scoreInfo);
+                            var scoreInfo = new ScoreInfo(working.BeatmapInfo, ruleset.Value)
+                            {
+                                Accuracy = score.Accuracy,
+                                MaxCombo = score.Combo,
+                                Statistics = new Dictionary<HitResult, int>
+                                {
+                                    { HitResult.Great, score.Count300 },
+                                    { HitResult.Ok, score.Count100 },
+                                    { HitResult.Meh, score.Count50 },
+                                    { HitResult.Miss, score.CountMiss }
+                                },
+                                Mods = mods,
+                                //TotalScore = score.TotalScore
+                            };
+
+                            if (score.SliderEnds != null)
+                            {
+                                scoreInfo.Statistics.Add(HitResult.SliderTailHit, score.SliderEnds.Value);
+                            }
+
+                            if (score.SliderTicks != null)
+                            {
+                                scoreInfo.Statistics.Add(HitResult.LargeTickHit, score.SliderTicks.Value);
+                            }
+
+                            if (score.SpinnerBonus != null)
+                            {
+                                scoreInfo.Statistics.Add(HitResult.LargeBonus, score.SpinnerBonus.Value);
+                            }
+
+                            if (score.SpinnerSpins != null)
+                            {
+                                scoreInfo.Statistics.Add(HitResult.SmallBonus, score.SpinnerSpins.Value);
+                            }
+
+                            if (score.LegacySliderEnds != null)
+                            {
+                                scoreInfo.Statistics.Add(HitResult.SmallTickHit, score.LegacySliderEnds.Value);
+                            }
+
+                            if (score.LegacySliderEndMisses != null)
+                            {
+                                scoreInfo.Statistics.Add(HitResult.SmallTickMiss, score.LegacySliderEndMisses.Value);
+                            }
+
+                            if (score.SliderTickMisses != null)
+                            {
+                                scoreInfo.Statistics.Add(HitResult.LargeTickMiss, score.SliderTickMisses.Value);
+                            }
 
                             var difficultyCalculator = rulesetInstance.CreateDifficultyCalculator(working);
                             var difficultyAttributes = difficultyCalculator.Calculate(mods);
@@ -319,9 +365,9 @@ namespace PerformanceCalculatorGUI.Screens
                             if (performanceCalculator == null)
                                 continue;
 
-                            double? livePp = score.PP;
-                            var perfAttributes = await performanceCalculator.CalculateAsync(parsedScore.ScoreInfo, difficultyAttributes, token).ConfigureAwait(false);
-                            score.PP = perfAttributes.Total;
+                            double? livePp = score.Pp;
+                            var perfAttributes = await performanceCalculator.CalculateAsync(scoreInfo, difficultyAttributes, token).ConfigureAwait(false);
+                            score.Pp = perfAttributes.Total;
 
                             var extendedScore = new ExtendedScore(score, livePp, perfAttributes);
                             plays.Add(extendedScore);
@@ -344,7 +390,7 @@ namespace PerformanceCalculatorGUI.Screens
                 {
                     Schedule(() =>
                     {
-                        userPanelContainer.Add(userPanel = new UserCard(players[0])
+                        userPanelContainer.Add(userPanel = new UserCard(players[0].ToAPIUser())
                         {
                             RelativeSizeAxes = Axes.X
                         });
@@ -359,18 +405,18 @@ namespace PerformanceCalculatorGUI.Screens
                     var filteredPlays = new List<ExtendedScore>();
 
                     // List of all beatmap IDs in plays without duplicates
-                    var beatmapIDs = plays.Select(x => x.SoloScore.BeatmapID).Distinct().ToList();
+                    var beatmapIDs = plays.Select(x => x.SoloScore.BeatmapId).Distinct().ToList();
 
                     foreach (int id in beatmapIDs)
                     {
-                        var bestPlayOnBeatmap = plays.Where(x => x.SoloScore.BeatmapID == id).OrderByDescending(x => x.SoloScore.PP).First();
+                        var bestPlayOnBeatmap = plays.Where(x => x.SoloScore.BeatmapId == id).OrderByDescending(x => x.SoloScore.Pp).First();
                         filteredPlays.Add(bestPlayOnBeatmap);
                     }
 
                     plays = filteredPlays;
                 }
 
-                var localOrdered = plays.OrderByDescending(x => x.SoloScore.PP).ToList();
+                var localOrdered = plays.OrderByDescending(x => x.SoloScore.Pp).ToList();
                 var liveOrdered = plays.OrderByDescending(x => x.LivePP ?? 0).ToList();
 
                 Schedule(() =>
@@ -393,9 +439,9 @@ namespace PerformanceCalculatorGUI.Screens
 
                     decimal totalLocalPP = 0;
                     for (int i = 0; i < localOrdered.Count; i++)
-                        totalLocalPP += (decimal)(Math.Pow(0.95, i) * (localOrdered[i].SoloScore.PP ?? 0));
+                        totalLocalPP += (decimal)(Math.Pow(0.95, i) * (localOrdered[i].SoloScore.Pp ?? 0));
 
-                    decimal totalLivePP = player.Statistics.PP ?? (decimal)0.0;
+                    decimal totalLivePP = (decimal?)player.TotalPp ?? (decimal)0.0;
 
                     decimal nonBonusLivePP = 0;
                     for (int i = 0; i < liveOrdered.Count; i++)
@@ -478,6 +524,37 @@ namespace PerformanceCalculatorGUI.Screens
             {
                 scores.SetLayoutPosition(sortedScores[i], i);
             }
+        }
+
+        private static Mod[] GetMods(Ruleset ruleset, string[] modNames)
+        {
+            var mods = new List<Mod>();
+
+            foreach (var modName in modNames)
+            {
+                var mod = ruleset.CreateModFromAcronym(modName);
+                if (mod == null)
+                {
+                    var modNameSplit = modName.Split("x");
+
+                    mod = ruleset.CreateModFromAcronym(modNameSplit[0]);
+                    if (mod is ModRateAdjust speedAdjustMod)
+                    {
+                        speedAdjustMod.SpeedChange.Value = double.Parse(modNameSplit[1]);
+                        mods.Add(speedAdjustMod);
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Invalid mod provided: {modName}");
+                    }
+                }
+                else
+                {
+                    mods.Add(mod);
+                }
+            }
+
+            return mods.ToArray();
         }
     }
 }

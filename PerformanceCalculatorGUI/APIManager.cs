@@ -39,7 +39,7 @@ namespace PerformanceCalculatorGUI
                 Debug.Assert(token != null);
             }
 
-            using var req = new JsonWebRequest<T>($"{ENDPOINT_CONFIGURATION.APIUrl}/api/v2/{request}");
+            using var req = new JsonWebRequest<T>($"https://rx.stanr.info/api/{request}");
             req.AddHeader("x-api-version", api_version.ToString(CultureInfo.InvariantCulture));
             req.AddHeader(System.Net.HttpRequestHeader.Authorization.ToString(), $"Bearer {token.AccessToken}");
             await req.PerformAsync().ConfigureAwait(false);
