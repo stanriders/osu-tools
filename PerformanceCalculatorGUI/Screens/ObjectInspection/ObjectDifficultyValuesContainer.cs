@@ -1,6 +1,7 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
@@ -169,6 +170,50 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                 if (hitObject.LazyEndPosition != null)
                     flowContainer.Add(new ObjectInspectorDifficultyValue("Lazy End Position", hitObject.LazyEndPosition!.Value));
             }
+
+            flowContainer.Add(new Box
+            {
+                Name = "Separator",
+                Height = 1,
+                RelativeSizeAxes = Axes.X,
+                Alpha = 0.5f
+            });
+
+            for (int i = 0; i < hitObject.Movements.Count; i++)
+            {
+                var movement = hitObject.Movements[i];
+                flowContainer.AddRange(new Drawable[]
+                {
+                    new ObjectInspectorDifficultyValue($"{i} Start Time", movement.StartTime),
+                    new ObjectInspectorDifficultyValue($"{i} End Time", movement.EndTime),
+                    new ObjectInspectorDifficultyValue($"{i} Distance", movement.Distance),
+                    new ObjectInspectorDifficultyValue($"{i} Time", movement.Time),
+                    new ObjectInspectorDifficultyValue($"{i} Difficulty", AimEvaluator.EvaluateDifficultyOfMovement(hitObject, movement))
+                });
+
+                if (i >= 1)
+                {
+                    var moveangle = angle(movement, hitObject.Movements[i - 1]);
+                    flowContainer.Add(new ObjectInspectorDifficultyValue($"{i} Angle", double.RadiansToDegrees(moveangle)));
+                }
+                else
+                {
+                    var lastMovement = ((OsuDifficultyHitObject)hitObject.Previous(0))?.Movements.LastOrDefault();
+                    if (lastMovement != null)
+                        flowContainer.Add(new ObjectInspectorDifficultyValue($"{i} Angle", double.RadiansToDegrees(angle(movement, lastMovement))));
+                }
+            }
+        }
+
+        private static double angle(Movement currMovement, Movement prevMovement)
+        {
+            Vector2 v1 = prevMovement.Start - prevMovement.End;
+            Vector2 v2 = currMovement.End - currMovement.Start;
+
+            float dot = Vector2.Dot(v1, v2);
+            float det = v1.X * v2.Y - v1.Y * v2.X;
+
+            return Math.Abs(Math.Atan2(det, dot));
         }
 
         private void drawTaikoValues(TaikoDifficultyHitObject hitObject)
