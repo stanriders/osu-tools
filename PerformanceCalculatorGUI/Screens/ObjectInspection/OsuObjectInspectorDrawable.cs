@@ -18,6 +18,7 @@ using osu.Game.Rulesets.Objects.Pooling;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
+using osuTK;
 using SharpCompress.Common;
 
 namespace PerformanceCalculatorGUI.Screens.ObjectInspection
@@ -70,7 +71,8 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                         Position = movement.Start,
                         Width = line.Rho,
                         Height = 2,
-                        Rotation = float.RadiansToDegrees(line.Theta)
+                        Rotation = float.RadiansToDegrees(line.Theta),
+                        EdgeSmoothness = Vector2.One
                     });
 
                     using (panel.BeginAbsoluteSequence(movement.StartTime - 500))
