@@ -72,7 +72,8 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                         Width = line.Rho,
                         Height = 2,
                         Rotation = float.RadiansToDegrees(line.Theta),
-                        EdgeSmoothness = Vector2.One
+                        EdgeSmoothness = Vector2.One,
+                        Colour = movement.IsNested ? Colour4.LightGreen : Colour4.White
                     });
 
                     using (panel.BeginAbsoluteSequence(movement.StartTime - 500))
