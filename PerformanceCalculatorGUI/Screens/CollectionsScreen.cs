@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 using osu.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -63,7 +64,7 @@ namespace PerformanceCalculatorGUI.Screens
 
         private VerboseLoadingLayer loadingLayer = null!;
 
-        private Bindable<Collection?> currentCollection = new Bindable<Collection?>();
+        private readonly Bindable<Collection?> currentCollection = new Bindable<Collection?>();
 
         private const string collections_directory = "collections";
 
@@ -91,6 +92,11 @@ namespace PerformanceCalculatorGUI.Screens
                                 RelativeSizeAxes = Axes.Both,
                                 Children = new Drawable[]
                                 {
+                                    new Box
+                                    {
+                                        RelativeSizeAxes = Axes.Both,
+                                        Colour = colourProvider.Background6.Darken(0.2f)
+                                    },
                                     new OsuScrollContainer(Direction.Vertical)
                                     {
                                         Name = "Collection List",
@@ -285,7 +291,7 @@ namespace PerformanceCalculatorGUI.Screens
                     var perfAttributes = performanceCalculator.Calculate(parsedScore.ScoreInfo, difficultyAttributes);
                     Schedule(() =>
                     {
-                        var scoreContainer = new ScoreContainer(new ExtendedScore(score, perfAttributes));
+                        var scoreContainer = new ScoreContainer(new ExtendedScore(score, difficultyAttributes, perfAttributes));
                         scoreContainer.OnDelete += onScoreRemove;
 
                         scoresList.Add(scoreContainer);
