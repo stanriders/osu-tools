@@ -156,6 +156,7 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                         Alpha = 0.5f
                     },
                     new ObjectInspectorDifficultyValue("Lazy Travel Time", hitObject.LazyTravelTime),
+                    new ObjectInspectorDifficultyValue("Length Ratio", hitObject.PathLengthToMovementLengthRatio),
                 });
 
                 if (hitObject.LazyEndPosition != null)
