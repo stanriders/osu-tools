@@ -51,7 +51,7 @@ namespace PerformanceCalculatorGUI.Components
         {
             graphsContainer.Clear();
 
-            var skills = val.NewValue.Where(x => x is StrainSkill or StrainDecaySkill).ToArray();
+            var skills = val.NewValue.Where(x => x is ProtoStrainSkill).ToArray();
 
             // dont bother if there are no strain skills to draw
             if (skills.Length == 0)
@@ -248,7 +248,7 @@ namespace PerformanceCalculatorGUI.Components
 
             foreach (var skill in skills)
             {
-                double[] strains = ((StrainSkill)skill).GetCurrentStrainPeaks().ToArray();
+                double[] strains = ((ProtoStrainSkill)skill).GetCurrentStrainPeaks().ToArray();
 
                 var skillStrainList = new List<float>();
 
