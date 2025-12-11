@@ -163,25 +163,22 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                     flowContainer.Add(new ObjectInspectorDifficultyValue("Lazy End Position", hitObject.LazyEndPosition!.Value));
             }
 
-            flowContainer.Add(new Box
-            {
-                Name = "Separator",
-                Height = 1,
-                RelativeSizeAxes = Axes.X,
-                Alpha = 0.5f
-            });
-
             for (int i = 0; i < hitObject.Movements.Count; i++)
             {
                 var movement = hitObject.Movements[i];
                 flowContainer.AddRange(new Drawable[]
                 {
-                    new ObjectInspectorDifficultyValue($"{i} Start Time", movement.StartTime),
-                    new ObjectInspectorDifficultyValue($"{i} End Time", movement.EndTime),
-                    new ObjectInspectorDifficultyValue($"{i} Distance", movement.Distance),
-                    new ObjectInspectorDifficultyValue($"{i} Time", movement.Time),
-                    new ObjectInspectorDifficultyValue($"{i} Radius", Math.Max(movement.StartRadius, movement.EndRadius)),
-                    new ObjectInspectorDifficultyValue($"{i} Difficulty", AimEvaluator.EvaluateDifficultyOfMovement(hitObject, movement))
+                    new Box
+                    {
+                        Name = "Separator",
+                        Height = 1,
+                        RelativeSizeAxes = Axes.X,
+                        Alpha = 0.5f
+                    },
+                    new ObjectInspectorDifficultyValue($"{i}. Distance", movement.Distance),
+                    new ObjectInspectorDifficultyValue($"{i}. Time", movement.Time),
+                    new ObjectInspectorDifficultyValue($"{i}. Radius", Math.Max(movement.StartRadius, movement.EndRadius)),
+                    new ObjectInspectorDifficultyValue($"{i}. Difficulty", AimEvaluator.EvaluateDifficultyOfMovement(hitObject, movement))
                 });
 
                 if (i >= 1)
