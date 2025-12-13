@@ -217,7 +217,7 @@ namespace PerformanceCalculatorGUI.Components
                 if (beatmap?.BeatmapInfo == null)
                     return;
 
-                Ruleset rulesetInstance = ruleset.Value.CreateInstance();
+                var rulesetInstance = ruleset.Value.CreateInstance();
                 var displayAttributes = rulesetInstance.GetBeatmapAttributesForDisplay(beatmap.BeatmapInfo, mods.Value).ToList();
 
                 // make sure we have enough displays
