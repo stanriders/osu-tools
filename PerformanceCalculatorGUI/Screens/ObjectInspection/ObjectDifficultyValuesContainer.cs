@@ -25,6 +25,7 @@ using osu.Game.Rulesets.Taiko.Difficulty.Evaluators;
 using osu.Game.Rulesets.Taiko.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Taiko.Objects;
 using osuTK;
+using StaminaEvaluator = osu.Game.Rulesets.Taiko.Difficulty.Evaluators.StaminaEvaluator;
 
 namespace PerformanceCalculatorGUI.Screens.ObjectInspection
 {
@@ -129,7 +130,7 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
         private void drawOsuValues(OsuDifficultyHitObject hitObject)
         {
             bool hidden = appliedMods.Value.Any(x => x is ModHidden);
-            flowContainer.AddRange(new[]
+            flowContainer.AddRange(new Drawable[]
             {
                 new ObjectInspectorDifficultyValue("Position", (hitObject.BaseObject as OsuHitObject)!.StackedPosition),
                 new ObjectInspectorDifficultyValue("Delta Time", hitObject.DeltaTime),
@@ -144,6 +145,17 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                 new ObjectInspectorDifficultyValue("Speed Difficulty", SpeedEvaluator.EvaluateDifficultyOf(hitObject, appliedMods.Value)),
                 new ObjectInspectorDifficultyValue("Rhythm Diff", osu.Game.Rulesets.Osu.Difficulty.Evaluators.RhythmEvaluator.EvaluateDifficultyOf(hitObject)),
                 new ObjectInspectorDifficultyValue(hidden ? "FLHD Difficulty" : "Flashlight Diff", FlashlightEvaluator.EvaluateDifficultyOf(hitObject, appliedMods.Value)),
+                new Box
+                {
+                    Name = "Separator",
+                    Height = 1,
+                    RelativeSizeAxes = Axes.X,
+                    Alpha = 0.5f
+                },
+                new ObjectInspectorDifficultyValue("Is Flow", hitObject.IsFlow),
+                new ObjectInspectorDifficultyValue("Flow Distance", hitObject.FlowDistance),
+                new ObjectInspectorDifficultyValue("Snap Distance", hitObject.SnapDistance),
+                new ObjectInspectorDifficultyValue("Flow Probability", hitObject.FlowProbability),
             });
 
             if (hitObject.Angle is not null)
