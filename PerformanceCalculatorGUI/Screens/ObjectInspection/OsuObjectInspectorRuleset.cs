@@ -14,6 +14,7 @@ using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Edit;
+using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Osu.Objects.Drawables;
 using osu.Game.Rulesets.Osu.UI;
 using osu.Game.Rulesets.UI;
@@ -35,7 +36,8 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
         {
         }
 
-        protected override void LoadComplete()
+        [BackgroundDependencyLoader]
+        private void load()
         {
             var extendedDifficultyCalculator = (IExtendedDifficultyCalculator?)difficultyCalculator.Value;
 
@@ -43,8 +45,6 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
             {
                 difficultyHitObjects = extendedDifficultyCalculator.GetDifficultyHitObjects().Cast<OsuDifficultyHitObject>().ToArray();
             }
-
-            base.LoadComplete();
         }
 
         protected override void Update()
@@ -61,20 +61,48 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
 
         private partial class OsuObjectInspectorPlayfield : OsuPlayfield
         {
-            private readonly IReadOnlyList<OsuDifficultyHitObject> difficultyHitObjects;
             protected override GameplayCursorContainer? CreateCursor() => null;
+            private readonly OsuObjectInspectorRenderer objectRenderer;
+            private OsuDifficultyHitObject[] difficultyHitObjects = [];
+
+            [Resolved]
+            private Bindable<DifficultyCalculator?> difficultyCalculator { get; set; } = null!;
 
             public OsuObjectInspectorPlayfield(IReadOnlyList<OsuDifficultyHitObject> difficultyHitObjects)
             {
-                this.difficultyHitObjects = difficultyHitObjects;
                 HitPolicy = new AnyOrderHitPolicy();
                 DisplayJudgements.Value = false;
+                AddInternal(objectRenderer = new OsuObjectInspectorRenderer { RelativeSizeAxes = Axes.Both });
             }
+
+            [BackgroundDependencyLoader]
+            private void load()
+            {
+                var extendedDifficultyCalculator = (IExtendedDifficultyCalculator?)difficultyCalculator.Value;
+
+                if (extendedDifficultyCalculator != null)
+                {
+                    difficultyHitObjects = extendedDifficultyCalculator.GetDifficultyHitObjects().Cast<OsuDifficultyHitObject>().ToArray();
+                }
+            }
+
 
             protected override void OnNewDrawableHitObject(DrawableHitObject d)
             {
                 base.OnNewDrawableHitObject(d);
                 d.ApplyCustomUpdateState += updateState;
+            }
+
+            protected override void OnHitObjectAdded(HitObject hitObject)
+            {
+                base.OnHitObjectAdded(hitObject);
+                objectRenderer.AddDifficultyDataPanel((OsuHitObject)hitObject, difficultyHitObjects.FirstOrDefault(x => x.StartTime == hitObject.StartTime));
+            }
+
+            protected override void OnHitObjectRemoved(HitObject hitObject)
+            {
+                base.OnHitObjectRemoved(hitObject);
+                objectRenderer.RemoveDifficultyDataPanel((OsuHitObject)hitObject);
             }
 
             private void updateState(DrawableHitObject hitObject, ArmedState state)
