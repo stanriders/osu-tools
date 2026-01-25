@@ -1,8 +1,8 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-#nullable enable
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -340,17 +340,24 @@ namespace PerformanceCalculatorGUI.Screens
 
             collectionList.Clear();
 
+            var collections = new List<Collection>();
+
             foreach (string collectionFile in Directory.EnumerateFiles(collections_directory))
             {
                 var deserializedCollection = JsonConvert.DeserializeObject<Collection>(File.ReadAllText(collectionFile));
 
                 if (deserializedCollection != null)
                 {
-                    var collectionButton = new CollectionButton(deserializedCollection, currentCollection);
-                    collectionList.Add(collectionButton);
-
-                    collectionButton.OnDelete += onCollectionDelete;
+                    collections.Add(deserializedCollection);
                 }
+            }
+
+            foreach (var collection in collections.OrderBy(x => x.Name))
+            {
+                var collectionButton = new CollectionButton(collection, currentCollection);
+                collectionList.Add(collectionButton);
+
+                collectionButton.OnDelete += onCollectionDelete;
             }
         }
 
@@ -396,11 +403,11 @@ namespace PerformanceCalculatorGUI.Screens
                     break;
 
                 case CollectionSortCriteria.Local:
-                    sortedScores = scoresList.Children.OrderByDescending(x => x.Score.PerformanceAttributes.Total).ToArray();
+                    sortedScores = scoresList.Children.OrderByDescending(x => x.Score.PerformanceAttributes?.Total).ToArray();
                     break;
 
                 case CollectionSortCriteria.Difference:
-                    sortedScores = scoresList.Children.OrderByDescending(x => x.Score.PerformanceAttributes.Total - x.Score.LivePP).ToArray();
+                    sortedScores = scoresList.Children.OrderByDescending(x => x.Score.PerformanceAttributes?.Total - x.Score.LivePP).ToArray();
                     break;
 
                 default:

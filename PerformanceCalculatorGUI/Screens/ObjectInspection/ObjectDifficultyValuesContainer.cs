@@ -32,16 +32,16 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
     public partial class ObjectDifficultyValuesContainer : Container
     {
         [Resolved]
-        private Bindable<IReadOnlyList<Mod>> appliedMods { get; set; }
+        private Bindable<IReadOnlyList<Mod>> appliedMods { get; set; } = null!;
 
         [Resolved]
-        private Track track { get; set; }
+        private Track track { get; set; } = null!;
 
-        private SpriteText hitObjectTypeText;
+        private SpriteText hitObjectTypeText = null!;
 
-        private FillFlowContainer flowContainer;
+        private FillFlowContainer flowContainer = null!;
 
-        public Bindable<DifficultyHitObject> CurrentDifficultyHitObject { get; } = new Bindable<DifficultyHitObject>();
+        public Bindable<DifficultyHitObject?> CurrentDifficultyHitObject { get; } = new Bindable<DifficultyHitObject?>();
 
         private const int hit_object_type_container_height = 50;
 
@@ -93,7 +93,7 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
             CurrentDifficultyHitObject.ValueChanged += h => updateValues(h.NewValue);
         }
 
-        private void updateValues(DifficultyHitObject hitObject)
+        private void updateValues(DifficultyHitObject? hitObject)
         {
             flowContainer.Clear();
 
@@ -141,7 +141,7 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                 new ObjectInspectorDifficultyValue("Aim Difficulty (w/o sliders)", AimEvaluator.EvaluateDifficultyOf(hitObject, false)),
                 new ObjectInspectorDifficultyValue("Speed Difficulty", SpeedEvaluator.EvaluateDifficultyOf(hitObject, appliedMods.Value)),
                 new ObjectInspectorDifficultyValue("Rhythm Diff", osu.Game.Rulesets.Osu.Difficulty.Evaluators.RhythmEvaluator.EvaluateDifficultyOf(hitObject)),
-                new ObjectInspectorDifficultyValue(hidden ? "FLHD Difficulty" : "Flashlight Diff", FlashlightEvaluator.EvaluateDifficultyOf(hitObject, hidden)),
+                new ObjectInspectorDifficultyValue(hidden ? "FLHD Difficulty" : "Flashlight Diff", FlashlightEvaluator.EvaluateDifficultyOf(hitObject, appliedMods.Value)),
             });
 
             if (hitObject.BaseObject is Slider)

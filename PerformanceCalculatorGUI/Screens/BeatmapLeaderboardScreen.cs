@@ -30,41 +30,43 @@ namespace PerformanceCalculatorGUI.Screens
 {
     public partial class BeatmapLeaderboardScreen : PerformanceCalculatorScreen
     {
-        private ExtendedLabelledTextBox beatmapIdTextBox;
-        private StatefulButton calculationButton;
-        private VerboseLoadingLayer loadingLayer;
+        private ExtendedLabelledTextBox beatmapIdTextBox = null!;
+        private StatefulButton calculationButton = null!;
+        private VerboseLoadingLayer loadingLayer = null!;
 
-        private GridContainer layout;
-        private ScoreTable scoreTable;
-        private OsuSpriteText noScoresPlaceholder;
+        private GridContainer layout = null!;
+        private ScoreTable scoreTable = null!;
+        private OsuSpriteText noScoresPlaceholder = null!;
 
-        private Container beatmapPanelContainer;
-        private BeatmapCard beatmapPanel;
+        private Container beatmapPanelContainer = null!;
+        private BeatmapCard? beatmapPanel;
 
-        private CancellationTokenSource calculationCancellatonToken;
+        private CancellationTokenSource? calculationCancellatonToken;
 
         [Cached]
         private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Orange);
 
         [Resolved]
-        private NotificationDisplay notificationDisplay { get; set; }
+        private NotificationDisplay notificationDisplay { get; set; } = null!;
 
         [Resolved]
-        private APIManager apiManager { get; set; }
+        private APIManager apiManager { get; set; } = null!;
 
         [Resolved]
-        private Bindable<RulesetInfo> ruleset { get; set; }
+        private Bindable<RulesetInfo> ruleset { get; set; } = null!;
 
         [Resolved]
-        private RulesetStore rulesets { get; set; }
+        private RulesetStore rulesets { get; set; } = null!;
 
         [Resolved]
-        private SettingsManager configManager { get; set; }
+        private SettingsManager configManager { get; set; } = null!;
 
         public override bool ShouldShowConfirmationDialogOnSwitch => false;
 
         [GeneratedRegex(@"osu\.ppy\.sh/(?:b|beatmapsets/\d+#\w+|beatmaps)/(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
         private partial Regex beatmapLinkRegex();
+
+        private int? queuedBeatmap;
 
         private const int settings_height = 40;
         private const int generate_score_amount = 50;
@@ -73,6 +75,12 @@ namespace PerformanceCalculatorGUI.Screens
         public BeatmapLeaderboardScreen()
         {
             RelativeSizeAxes = Axes.Both;
+        }
+
+        public BeatmapLeaderboardScreen(int beatmapId)
+        {
+            RelativeSizeAxes = Axes.Both;
+            queuedBeatmap = beatmapId;
         }
 
         [BackgroundDependencyLoader]
@@ -187,6 +195,19 @@ namespace PerformanceCalculatorGUI.Screens
 
             if (RuntimeInfo.IsDesktop)
                 HotReloadCallbackReceiver.CompilationFinished += _ => Schedule(calculate);
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            if (queuedBeatmap != null)
+            {
+                beatmapIdTextBox.Current.Value = queuedBeatmap.Value.ToString();
+                calculate();
+            }
+
+            queuedBeatmap = null;
         }
 
         private void calculate()

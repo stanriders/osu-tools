@@ -26,8 +26,8 @@ using osu.Game.Rulesets;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
-using osu.Game.Utils;
 using osu.Game.Users.Drawables;
+using osu.Game.Utils;
 using osuTK;
 using osuTK.Graphics;
 using PerformanceCalculatorGUI.Components.TextBoxes;
@@ -42,10 +42,10 @@ namespace PerformanceCalculatorGUI.Components
         public Bindable<int> Position { get; } = new Bindable<int>();
         public Bindable<int> PositionChange { get; } = new Bindable<int>();
 
-        public PerformanceAttributes PerformanceAttributes { get; }
+        public PerformanceAttributes? PerformanceAttributes { get; }
         public DifficultyAttributes DifficultyAttributes { get; }
 
-        public ExtendedScore(SoloScoreInfo score, DifficultyAttributes difficultyAttributes, PerformanceAttributes performanceAttributes)
+        public ExtendedScore(SoloScoreInfo score, DifficultyAttributes difficultyAttributes, PerformanceAttributes? performanceAttributes)
         {
             SoloScore = score;
             PerformanceAttributes = performanceAttributes;
@@ -56,8 +56,8 @@ namespace PerformanceCalculatorGUI.Components
 
     public partial class ExtendedProfileItemContainer : ProfileItemContainer
     {
-        public Action OnHoverAction { get; set; }
-        public Action OnUnhoverAction { get; set; }
+        public Action? OnHoverAction { get; set; }
+        public Action? OnUnhoverAction { get; set; }
 
         public ExtendedProfileItemContainer()
         {
@@ -93,12 +93,12 @@ namespace PerformanceCalculatorGUI.Components
         public readonly bool ShowAvatar;
 
         [Resolved]
-        private OsuColour colours { get; set; }
+        private OsuColour colours { get; set; } = null!;
 
         [Resolved]
-        private OverlayColourProvider colourProvider { get; set; }
+        private OverlayColourProvider colourProvider { get; set; } = null!;
 
-        private OsuSpriteText positionChangeText;
+        private OsuSpriteText positionChangeText = null!;
 
         public ExtendedProfileScore(ExtendedScore score, bool showAvatar = false)
         {
@@ -372,58 +372,13 @@ namespace PerformanceCalculatorGUI.Components
                                 Shear = new Vector2(performance_background_shear, 0),
                                 EdgeSmoothness = new Vector2(2, 0),
                             },
-                            new FillFlowContainer
-                            {
-                                AutoSizeAxes = Axes.Both,
-                                Padding = new MarginPadding
-                                {
-                                    Vertical = 5,
-                                    Left = 30,
-                                    Right = 20
-                                },
-                                Anchor = Anchor.Centre,
-                                Origin = Anchor.Centre,
-                                Direction = FillDirection.Vertical,
-                                Children = new Drawable[]
-                                {
-                                    new ExtendedOsuSpriteText
-                                    {
-                                        Font = OsuFont.GetFont(weight: FontWeight.Bold),
-                                        Text = $"{Score.PerformanceAttributes.Total:0}pp",
-                                        Colour = colourProvider.Highlight1,
-                                        Anchor = Anchor.TopCentre,
-                                        Origin = Anchor.TopCentre,
-                                        TooltipContent = $"{AttributeConversion.ToReadableString(Score.PerformanceAttributes)}"
-                                    },
-                                    new OsuSpriteText
-                                    {
-                                        Font = OsuFont.GetFont(size: small_text_font_size),
-                                        Text = $"{Score.PerformanceAttributes.Total - Score.LivePP:+0.0;-0.0;-}",
-                                        Colour = getPpDifferenceColor(),
-                                        Anchor = Anchor.TopCentre,
-                                        Origin = Anchor.TopCentre
-                                    }
-                                }
-                            }
+                            new ScorePerformanceContainer(Score)
                         }
                     }
                 }
             });
 
             Score.PositionChange.BindValueChanged(v => { positionChangeText.Text = $"{v.NewValue:+0;-0;-}"; });
-        }
-
-        private Color4 getPpDifferenceColor()
-        {
-            double difference = Score.PerformanceAttributes.Total - Score.LivePP ?? 0;
-            var baseColor = colourProvider.Light1;
-
-            return difference switch
-            {
-                < 0 => Interpolation.ValueAt(difference, baseColor, Color4.OrangeRed, 0, -200),
-                > 0 => Interpolation.ValueAt(difference, baseColor, Color4.Lime, 0, 200),
-                _ => baseColor
-            };
         }
 
         private OsuSpriteText formatCombo()
@@ -467,9 +422,9 @@ namespace PerformanceCalculatorGUI.Components
 
         private partial class ScoreBeatmapMetadataContainer : OsuHoverContainer
         {
-            private readonly IBeatmapInfo beatmapInfo;
+            private readonly IBeatmapInfo? beatmapInfo;
 
-            public ScoreBeatmapMetadataContainer(IBeatmapInfo beatmapInfo)
+            public ScoreBeatmapMetadataContainer(IBeatmapInfo? beatmapInfo)
             {
                 this.beatmapInfo = beatmapInfo;
                 AutoSizeAxes = Axes.Both;
@@ -480,7 +435,7 @@ namespace PerformanceCalculatorGUI.Components
             {
                 Action = () =>
                 {
-                    host.OpenUrlExternally($"https://osu.ppy.sh/b/{beatmapInfo.OnlineID}");
+                    host.OpenUrlExternally($"https://osu.ppy.sh/b/{beatmapInfo?.OnlineID}");
                 };
 
                 Child = new FillFlowContainer
@@ -492,7 +447,7 @@ namespace PerformanceCalculatorGUI.Components
                         {
                             Anchor = Anchor.BottomLeft,
                             Origin = Anchor.BottomLeft,
-                            Text = new RomanisableString(beatmapInfo.Metadata.TitleUnicode, beatmapInfo.Metadata.Title),
+                            Text = new RomanisableString(beatmapInfo?.Metadata.TitleUnicode, beatmapInfo?.Metadata.Title),
                             Font = OsuFont.GetFont(size: 14, weight: FontWeight.SemiBold, italics: true)
                         },
                         new OsuSpriteText
@@ -506,10 +461,80 @@ namespace PerformanceCalculatorGUI.Components
                         {
                             Anchor = Anchor.BottomLeft,
                             Origin = Anchor.BottomLeft,
-                            Text = new RomanisableString(beatmapInfo.Metadata.ArtistUnicode, beatmapInfo.Metadata.Artist),
+                            Text = new RomanisableString(beatmapInfo?.Metadata.ArtistUnicode, beatmapInfo?.Metadata.Artist),
                             Font = OsuFont.GetFont(size: 12, italics: true)
                         },
                     }
+                };
+            }
+        }
+
+        private partial class ScorePerformanceContainer : OsuHoverContainer
+        {
+            private readonly ExtendedScore score;
+
+            [Resolved]
+            private OverlayColourProvider colourProvider { get; set; } = null!;
+
+            public ScorePerformanceContainer(ExtendedScore score)
+            {
+                this.score = score;
+                RelativeSizeAxes = Axes.Both;
+                Padding = new MarginPadding
+                {
+                    Vertical = 5,
+                    Left = 30,
+                    Right = 20
+                };
+            }
+
+            [BackgroundDependencyLoader(true)]
+            private void load(PerformanceCalculatorSceneManager sceneManager)
+            {
+                Action = () =>
+                {
+                    sceneManager.SwitchToSimulate(score.SoloScore.BeatmapID, score.SoloScore.ID);
+                };
+
+                Child = new FillFlowContainer
+                {
+                    AutoSizeAxes = Axes.Both,
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Direction = FillDirection.Vertical,
+                    Children = new Drawable[]
+                    {
+                        new ExtendedOsuSpriteText
+                        {
+                            Font = OsuFont.GetFont(weight: FontWeight.Bold),
+                            Text = $"{score.PerformanceAttributes?.Total:0}pp",
+                            Colour = colourProvider.Highlight1,
+                            Anchor = Anchor.TopCentre,
+                            Origin = Anchor.TopCentre,
+                            TooltipContent = $"{AttributeConversion.ToReadableString(score.PerformanceAttributes)}"
+                        },
+                        new OsuSpriteText
+                        {
+                            Font = OsuFont.GetFont(size: small_text_font_size),
+                            Text = $"{score.PerformanceAttributes?.Total - score.LivePP:+0.0;-0.0;-}",
+                            Colour = getPpDifferenceColor(),
+                            Anchor = Anchor.TopCentre,
+                            Origin = Anchor.TopCentre
+                        }
+                    }
+                };
+            }
+
+            private Color4 getPpDifferenceColor()
+            {
+                double difference = score.PerformanceAttributes?.Total - score.LivePP ?? 0;
+                var baseColor = colourProvider.Light1;
+
+                return difference switch
+                {
+                    < 0 => Interpolation.ValueAt(difference, baseColor, Color4.OrangeRed, 0, -200),
+                    > 0 => Interpolation.ValueAt(difference, baseColor, Color4.Lime, 0, 200),
+                    _ => baseColor
                 };
             }
         }

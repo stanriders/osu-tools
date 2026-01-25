@@ -11,6 +11,7 @@ using osu.Framework.Graphics.Cursor;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
 using osu.Framework.Platform;
 using osu.Game.Beatmaps;
@@ -25,30 +26,34 @@ using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Utils;
 using osuTK;
+using osuTK.Graphics;
 using PerformanceCalculatorGUI.Components.TextBoxes;
 
 namespace PerformanceCalculatorGUI.Components
 {
-    public partial class BeatmapCard : OsuClickableContainer, IHasCustomTooltip<ProcessorWorkingBeatmap>
+    public partial class BeatmapCard : OsuClickableContainer, IHasCustomTooltip<ProcessorWorkingBeatmap>, IHasContextMenu
     {
         private readonly ProcessorWorkingBeatmap beatmap;
 
         [Resolved(canBeNull: true)]
-        private OverlayColourProvider colourProvider { get; set; }
+        private OverlayColourProvider? colourProvider { get; set; }
 
         [Resolved]
-        private OsuColour colours { get; set; }
+        private OsuColour colours { get; set; } = null!;
 
         [Resolved]
-        private LargeTextureStore textures { get; set; }
+        private LargeTextureStore textures { get; set; } = null!;
 
         [Resolved]
-        private Bindable<IReadOnlyList<Mod>> mods { get; set; }
+        private Bindable<IReadOnlyList<Mod>> mods { get; set; } = null!;
+
+        [Resolved]
+        private PerformanceCalculatorSceneManager sceneManager { get; set; } = null!;
 
         public ITooltip<ProcessorWorkingBeatmap> GetCustomTooltip() => new BeatmapCardTooltip(colourProvider);
         public ProcessorWorkingBeatmap TooltipContent { get; }
 
-        private ModSettingChangeTracker modSettingChangeTracker;
+        private ModSettingChangeTracker? modSettingChangeTracker;
         private OsuSpriteText bpmText = null!;
 
         public BeatmapCard(ProcessorWorkingBeatmap beatmap)
@@ -165,7 +170,7 @@ namespace PerformanceCalculatorGUI.Components
 
         public partial class BeatmapCardTooltip : VisibilityContainer, ITooltip<ProcessorWorkingBeatmap>
         {
-            public BeatmapCardTooltip(OverlayColourProvider colourProvider)
+            public BeatmapCardTooltip(OverlayColourProvider? colourProvider)
             {
                 this.colourProvider = colourProvider;
                 AutoSizeAxes = Axes.Both;
@@ -178,19 +183,19 @@ namespace PerformanceCalculatorGUI.Components
 
             public void Move(Vector2 pos) => Position = pos;
 
-            private ProcessorWorkingBeatmap beatmap;
+            private ProcessorWorkingBeatmap? beatmap;
 
             private FillFlowContainer<VerticalAttributeDisplay> attributeContainer = null!;
 
             [Resolved]
-            private Bindable<IReadOnlyList<Mod>> mods { get; set; }
+            private Bindable<IReadOnlyList<Mod>> mods { get; set; } = null!;
 
-            private readonly OverlayColourProvider colourProvider;
+            private readonly OverlayColourProvider? colourProvider;
 
-            private ModSettingChangeTracker modSettingChangeTracker;
+            private ModSettingChangeTracker? modSettingChangeTracker;
 
             [Resolved]
-            private IBindable<RulesetInfo> ruleset { get; set; }
+            private IBindable<RulesetInfo> ruleset { get; set; } = null!;
 
             protected override void LoadComplete()
             {
@@ -232,7 +237,7 @@ namespace PerformanceCalculatorGUI.Components
                     attributeContainer[i].SetAttribute(null);
             });
 
-            public void SetContent(ProcessorWorkingBeatmap content)
+            public void SetContent(ProcessorWorkingBeatmap? content)
             {
                 if (content == beatmap && Children.Any())
                     return;
@@ -244,7 +249,7 @@ namespace PerformanceCalculatorGUI.Components
                     new Box
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = colourProvider.Background6
+                        Colour = colourProvider?.Background6 ?? Color4.Black
                     },
                     attributeContainer = new FillFlowContainer<VerticalAttributeDisplay>
                     {
@@ -255,5 +260,9 @@ namespace PerformanceCalculatorGUI.Components
                 };
             }
         }
+
+        public MenuItem[] ContextMenuItems => beatmap.BeatmapInfo.OnlineID > 0
+            ? [new OsuMenuItem("Open leaderboard", MenuItemType.Standard, () => sceneManager.SwitchToBeatmapLeaderboard(beatmap.BeatmapInfo.OnlineID))]
+            : [];
     }
 }
