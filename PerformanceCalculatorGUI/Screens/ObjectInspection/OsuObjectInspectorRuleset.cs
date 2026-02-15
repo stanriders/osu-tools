@@ -83,7 +83,7 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
             protected override void OnHitObjectAdded(HitObject hitObject)
             {
                 base.OnHitObjectAdded(hitObject);
-                objectRenderer.AddDifficultyDataPanel((OsuHitObject)hitObject, difficultyHitObjects.FirstOrDefault(x => x.StartTime == hitObject.StartTime));
+                objectRenderer.AddDifficultyDataPanel((OsuHitObject)hitObject);
             }
 
             protected override void OnHitObjectRemoved(HitObject hitObject)

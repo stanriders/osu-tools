@@ -2,29 +2,28 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Performance;
 using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Threading;
-using osu.Framework.Utils;
+using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Pooling;
-using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 using osuTK;
-using SharpCompress.Common;
 
 namespace PerformanceCalculatorGUI.Screens.ObjectInspection
 {
     public partial class OsuObjectInspectorDrawable : PoolableDrawableWithLifetime<OsuObjectInspectorLifetimeEntry>
     {
+        [Resolved]
+        private Bindable<DifficultyCalculator?> difficultyCalculator { get; set; } = null!;
+
         protected override void OnApply(OsuObjectInspectorLifetimeEntry entry)
         {
             base.OnApply(entry);
@@ -51,13 +50,17 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
             if (entry == null) return;
 
             var hitObject = entry.HitObject;
+
+            var diffObjects = ((IExtendedDifficultyCalculator)difficultyCalculator.Value!).GetDifficultyHitObjects();
+            var difficultyHitObject = (OsuDifficultyHitObject?)diffObjects.FirstOrDefault(x => x.BaseObject.StartTime == hitObject.StartTime);
+
             double startTime = hitObject.StartTime - hitObject.TimePreempt;
             double movementTime = hitObject.GetEndTime() - hitObject.StartTime;
             double visibleTime = hitObject.GetEndTime() - startTime;
 
-            if (entry.DifficultyHitObject is not null)
+            if (difficultyHitObject is not null)
             {
-                foreach (var movement in entry.DifficultyHitObject.Movements)
+                foreach (var movement in difficultyHitObject.Movements)
                 {
                     Container panel;
                     AddInternal(panel = new Container
@@ -89,14 +92,12 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
 
     public class OsuObjectInspectorLifetimeEntry : LifetimeEntry
     {
-        public event Action Invalidated;
+        public event Action? Invalidated;
         public readonly OsuHitObject HitObject;
-        public readonly OsuDifficultyHitObject DifficultyHitObject;
 
-        public OsuObjectInspectorLifetimeEntry(OsuHitObject hitObject, OsuDifficultyHitObject difficultyHitObject)
+        public OsuObjectInspectorLifetimeEntry(OsuHitObject hitObject)
         {
             HitObject = hitObject;
-            DifficultyHitObject = difficultyHitObject;
             LifetimeStart = HitObject.StartTime - HitObject.TimePreempt;
 
             bindEvents();

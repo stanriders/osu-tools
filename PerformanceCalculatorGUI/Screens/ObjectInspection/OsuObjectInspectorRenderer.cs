@@ -1,16 +1,11 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Pooling;
 using osu.Game.Rulesets.Objects.Pooling;
-using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Objects;
 
 namespace PerformanceCalculatorGUI.Screens.ObjectInspection
@@ -30,9 +25,9 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
             };
         }
 
-        public void AddDifficultyDataPanel(OsuHitObject hitObject, OsuDifficultyHitObject difficultyHitObject)
+        public void AddDifficultyDataPanel(OsuHitObject hitObject)
         {
-            var newEntry = new OsuObjectInspectorLifetimeEntry(hitObject, difficultyHitObject);
+            var newEntry = new OsuObjectInspectorLifetimeEntry(hitObject);
             lifetimeEntries.Add(newEntry);
             Add(newEntry);
         }
