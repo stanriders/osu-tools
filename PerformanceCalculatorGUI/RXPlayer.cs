@@ -13,7 +13,7 @@ namespace PerformanceCalculatorGUI
         public required int Id { get; set; }
 
         [JsonProperty(@"countryCode")]
-        private string countryCodeString;
+        private string? countryCodeString;
 
         public CountryCode CountryCode
         {

@@ -21,7 +21,7 @@ namespace PerformanceCalculator.Simulate
         [UsedImplicitly]
         [Required]
         [Argument(0, Name = "beatmap", Description = "Required. Can be either a path to beatmap file (.osu) or beatmap ID.")]
-        public string Beatmap { get; }
+        public string Beatmap { get; } = null!;
 
         [UsedImplicitly]
         [Option(Template = "-a|--accuracy <accuracy>", Description = "Accuracy. Enter as decimal 0-100. Defaults to 100. Scales hit results as well and is rounded to the nearest possible value for the beatmap.")]
@@ -29,7 +29,7 @@ namespace PerformanceCalculator.Simulate
 
         [UsedImplicitly]
         [Option(CommandOptionType.MultipleValue, Template = "-m|--mod <mod>", Description = "One for each mod. The mods to compute the performance with. Values: hr, dt, hd, fl, etc...")]
-        public string[] Mods { get; }
+        public string[] Mods { get; } = [];
 
         [UsedImplicitly]
         [Option(CommandOptionType.MultipleValue, Template = "-o|--mod-option <option>",
@@ -39,6 +39,10 @@ namespace PerformanceCalculator.Simulate
         [UsedImplicitly]
         [Option(Template = "-X|--misses <misses>", Description = "Number of misses. Defaults to 0.")]
         public int Misses { get; }
+
+        [UsedImplicitly]
+        [Option(Template = "-l|--legacy-total-score <score>", Description = "Amount of legacy total score.")]
+        public long? LegacyTotalScore { get; }
 
         //
         // Options implemented in the ruleset-specific commands
@@ -70,9 +74,10 @@ namespace PerformanceCalculator.Simulate
             var statistics = GenerateHitResults(beatmap, mods);
             var scoreInfo = new ScoreInfo(beatmap.BeatmapInfo, ruleset.RulesetInfo)
             {
-                Accuracy = GetAccuracy(beatmap, statistics),
+                Accuracy = GetAccuracy(beatmap, statistics, mods),
                 MaxCombo = Combo ?? (int)Math.Round(PercentCombo / 100 * beatmapMaxCombo),
                 Statistics = statistics,
+                LegacyTotalScore = LegacyTotalScore,
                 Mods = mods
             };
 
@@ -86,6 +91,6 @@ namespace PerformanceCalculator.Simulate
 
         protected abstract Dictionary<HitResult, int> GenerateHitResults(IBeatmap beatmap, Mod[] mods);
 
-        protected virtual double GetAccuracy(IBeatmap beatmap, Dictionary<HitResult, int> statistics) => 0;
+        protected virtual double GetAccuracy(IBeatmap beatmap, Dictionary<HitResult, int> statistics, Mod[] mods) => 0;
     }
 }

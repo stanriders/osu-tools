@@ -4,8 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Humanizer;
 using osu.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -15,8 +15,6 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
-using osu.Framework.Input.Events;
-using osu.Framework.Input.States;
 using osu.Framework.Logging;
 using osu.Framework.Threading;
 using osu.Game.Configuration;
@@ -28,7 +26,6 @@ using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Overlays;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Difficulty;
-using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Scoring;
@@ -40,86 +37,93 @@ using PerformanceCalculatorGUI.Components;
 using PerformanceCalculatorGUI.Components.TextBoxes;
 using PerformanceCalculatorGUI.Configuration;
 using PerformanceCalculatorGUI.Screens.ObjectInspection;
+using PerformanceCalculatorGUI.Screens.Simulate;
 
 namespace PerformanceCalculatorGUI.Screens
 {
     public partial class SimulateScreen : PerformanceCalculatorScreen
     {
-        private ProcessorWorkingBeatmap working;
+        private ProcessorWorkingBeatmap? working;
 
-        private ExtendedUserModSelectOverlay userModsSelectOverlay;
+        private ExtendedUserModSelectOverlay userModsSelectOverlay = null!;
 
-        private GridContainer beatmapImportContainer;
-        private LabelledTextBox beatmapFileTextBox;
-        private LabelledTextBox beatmapIdTextBox;
-        private SwitchButton beatmapImportTypeSwitch;
+        private GridContainer beatmapImportContainer = null!;
+        private LabelledTextBox beatmapFileTextBox = null!;
+        private LabelledTextBox beatmapIdTextBox = null!;
+        private SwitchButton beatmapImportTypeSwitch = null!;
 
-        private GridContainer missesContainer;
-        private LimitedLabelledNumberBox missesTextBox;
-        private LimitedLabelledNumberBox largeTickMissesTextBox;
-        private LimitedLabelledNumberBox sliderTailMissesTextBox;
-        private LimitedLabelledNumberBox comboTextBox;
-        private LimitedLabelledNumberBox scoreTextBox;
+        private GridContainer missesContainer = null!;
+        private LimitedLabelledNumberBox missesTextBox = null!;
+        private LimitedLabelledNumberBox largeTickMissesTextBox = null!;
+        private LimitedLabelledNumberBox sliderTailMissesTextBox = null!;
+        private LimitedLabelledNumberBox comboTextBox = null!;
+        private LimitedLabelledNumberBox scoreTextBox = null!;
 
-        private LabelledNumberBox scoreIdTextBox;
-        private StatefulButton scoreIdPopulateButton;
+        private LabelledNumberBox scoreIdTextBox = null!;
+        private StatefulButton scoreIdPopulateButton = null!;
 
-        private GridContainer accuracyContainer;
-        private LimitedLabelledFractionalNumberBox accuracyTextBox;
-        private LimitedLabelledNumberBox goodsTextBox;
-        private LimitedLabelledNumberBox mehsTextBox;
-        private SwitchButton fullScoreDataSwitch;
+        private GridContainer accuracyContainer = null!;
+        private LimitedLabelledFractionalNumberBox accuracyTextBox = null!;
+        private LimitedLabelledNumberBox goodsTextBox = null!;
+        private LimitedLabelledNumberBox mehsTextBox = null!;
+        private SwitchButton fullScoreDataSwitch = null!;
 
-        private DifficultyAttributes difficultyAttributes;
-        private FillFlowContainer difficultyAttributesContainer;
-        private FillFlowContainer performanceAttributesContainer;
+        private DifficultyAttributes? difficultyAttributes;
+        private AttributesTable difficultyAttributesContainer = null!;
 
-        private PerformanceCalculator performanceCalculator;
+        private PerformanceCalculator? performanceCalculator;
+        private AttributesTable performanceAttributesContainer = null!;
 
         [Cached]
-        private Bindable<DifficultyCalculator> difficultyCalculator = new Bindable<DifficultyCalculator>();
+        private Bindable<DifficultyCalculator?> difficultyCalculator = new Bindable<DifficultyCalculator?>();
 
-        private FillFlowContainer beatmapDataContainer;
-        private Container beatmapTitle;
+        private FillFlowContainer beatmapDataContainer = null!;
+        private Container beatmapTitle = null!;
 
-        private ModDisplay modDisplay;
+        private ModDisplay modDisplay = null!;
 
-        private StrainVisualizer strainVisualizer;
+        private StrainVisualizer strainVisualizer = null!;
 
-        private ObjectInspector objectInspector;
+        private ObjectInspector? objectInspector;
 
-        private BufferedContainer background;
+        private BufferedContainer? background;
 
-        private ScheduledDelegate debouncedPerformanceUpdate;
-
-        [Resolved]
-        private NotificationDisplay notificationDisplay { get; set; }
+        private ScheduledDelegate? debouncedPerformanceUpdate;
 
         [Resolved]
-        private AudioManager audio { get; set; }
+        private NotificationDisplay notificationDisplay { get; set; } = null!;
 
         [Resolved]
-        private Bindable<IReadOnlyList<Mod>> appliedMods { get; set; }
+        private AudioManager audio { get; set; } = null!;
 
         [Resolved]
-        private Bindable<RulesetInfo> ruleset { get; set; }
+        private Bindable<IReadOnlyList<Mod>> appliedMods { get; set; } = null!;
 
         [Resolved]
-        private RulesetStore rulesets { get; set; }
+        private Bindable<RulesetInfo> ruleset { get; set; } = null!;
 
         [Resolved]
-        private LargeTextureStore textures { get; set; }
+        private RulesetStore rulesets { get; set; } = null!;
 
         [Resolved]
-        private SettingsManager configManager { get; set; }
+        private LargeTextureStore textures { get; set; } = null!;
 
         [Resolved]
-        private APIManager apiManager { get; set; }
+        private SettingsManager configManager { get; set; } = null!;
+
+        [Resolved]
+        private APIManager apiManager { get; set; } = null!;
 
         [Cached]
         private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Blue);
 
         public override bool ShouldShowConfirmationDialogOnSwitch => working != null;
+
+        [GeneratedRegex(@"osu\.ppy\.sh/(?:b|beatmapsets/\d+#\w+|beatmaps)/(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+        private partial Regex beatmapLinkRegex();
+
+        private int? queuedBeatmap;
+        private ulong? queuedScore;
 
         private const int file_selection_container_height = 40;
         private const int map_title_container_height = 40;
@@ -130,11 +134,24 @@ namespace PerformanceCalculatorGUI.Screens
             RelativeSizeAxes = Axes.Both;
         }
 
+        public SimulateScreen(int beatmapId, ulong? scoreId = null)
+        {
+            RelativeSizeAxes = Axes.Both;
+            queuedBeatmap = beatmapId;
+            queuedScore = scoreId;
+        }
+
         [BackgroundDependencyLoader]
         private void load(OsuColour osuColour)
         {
             InternalChildren = new Drawable[]
             {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = colourProvider.Background6,
+                    Alpha = 0.85f
+                },
                 new GridContainer
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -165,12 +182,13 @@ namespace PerformanceCalculatorGUI.Screens
                                             FixedLabelWidth = 100f,
                                             PlaceholderText = "Click to select a beatmap file"
                                         },
-                                        beatmapIdTextBox = new LimitedLabelledNumberBox
+                                        beatmapIdTextBox = new ExtendedLabelledTextBox
                                         {
                                             Label = "Beatmap ID",
                                             FixedLabelWidth = 100f,
-                                            PlaceholderText = "Enter beatmap ID",
-                                            CommitOnFocusLoss = false
+                                            PlaceholderText = "Enter a beatmap ID or link",
+                                            CommitOnFocusLoss = false,
+                                            SelectAllOnFocus = true
                                         },
                                         beatmapImportTypeSwitch = new SwitchButton
                                         {
@@ -241,7 +259,7 @@ namespace PerformanceCalculatorGUI.Screens
                                                             {
                                                                 if (!string.IsNullOrEmpty(scoreIdTextBox.Current.Value))
                                                                 {
-                                                                    populateSettingsFromScore(long.Parse(scoreIdTextBox.Current.Value));
+                                                                    populateSettingsFromScore(ulong.Parse(scoreIdTextBox.Current.Value));
                                                                 }
                                                                 else
                                                                 {
@@ -418,37 +436,23 @@ namespace PerformanceCalculatorGUI.Screens
                                             {
                                                 new OsuSpriteText
                                                 {
-                                                    Margin = new MarginPadding { Left = 10f, Top = 5f, Bottom = 10.0f },
+                                                    Margin = new MarginPadding { Left = 10f, Vertical = 5f },
                                                     Origin = Anchor.TopLeft,
                                                     Height = 20,
                                                     Text = "Difficulty Attributes"
                                                 },
-                                                difficultyAttributesContainer = new FillFlowContainer
-                                                {
-                                                    Direction = FillDirection.Vertical,
-                                                    RelativeSizeAxes = Axes.X,
-                                                    Anchor = Anchor.TopLeft,
-                                                    AutoSizeAxes = Axes.Y,
-                                                    Spacing = new Vector2(0, 2f)
-                                                },
+                                                difficultyAttributesContainer = new AttributesTable(),
                                                 new OsuSpriteText
                                                 {
-                                                    Margin = new MarginPadding(10.0f),
+                                                    Margin = new MarginPadding { Left = 10f, Vertical = 5f },
                                                     Origin = Anchor.TopLeft,
                                                     Height = 20,
                                                     Text = "Performance Attributes"
                                                 },
-                                                performanceAttributesContainer = new FillFlowContainer
-                                                {
-                                                    Direction = FillDirection.Vertical,
-                                                    RelativeSizeAxes = Axes.X,
-                                                    Anchor = Anchor.TopLeft,
-                                                    AutoSizeAxes = Axes.Y,
-                                                    Spacing = new Vector2(0, 2f)
-                                                },
+                                                performanceAttributesContainer = new AttributesTable(),
                                                 new OsuSpriteText
                                                 {
-                                                    Margin = new MarginPadding(10.0f),
+                                                    Margin = new MarginPadding { Left = 10f, Vertical = 5f },
                                                     Origin = Anchor.TopLeft,
                                                     Height = 20,
                                                     Text = "Strain graph (alt+scroll to zoom)"
@@ -472,14 +476,17 @@ namespace PerformanceCalculatorGUI.Screens
                                                         if (objectInspector is not null)
                                                             RemoveInternal(objectInspector, true);
 
-                                                        AddInternal(objectInspector = new ObjectInspector(working)
+                                                        if (working != null)
                                                         {
-                                                            RelativeSizeAxes = Axes.Both,
-                                                            Anchor = Anchor.Centre,
-                                                            Origin = Anchor.Centre,
-                                                            Size = new Vector2(0.95f)
-                                                        });
-                                                        objectInspector.Show();
+                                                            AddInternal(objectInspector = new ObjectInspector(working)
+                                                            {
+                                                                RelativeSizeAxes = Axes.Both,
+                                                                Anchor = Anchor.Centre,
+                                                                Origin = Anchor.Centre,
+                                                                Size = new Vector2(0.95f)
+                                                            });
+                                                            objectInspector.Show();
+                                                        }
                                                     }
                                                 }
                                             }
@@ -517,8 +524,6 @@ namespace PerformanceCalculatorGUI.Screens
                         new Dimension(),
                         new Dimension(GridSizeMode.AutoSize)
                     };
-
-                    fixupTextBox(beatmapIdTextBox);
                 }
             });
 
@@ -551,6 +556,25 @@ namespace PerformanceCalculatorGUI.Screens
             }
         }
 
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            if (queuedScore != null)
+            {
+                populateSettingsFromScore(queuedScore.Value);
+                scoreIdTextBox.Text = queuedScore.Value.ToString();
+            }
+            else if (queuedBeatmap != null)
+            {
+                changeBeatmap(queuedBeatmap.Value.ToString());
+                beatmapIdTextBox.Text = queuedBeatmap.Value.ToString();
+            }
+
+            queuedScore = null;
+            queuedBeatmap = null;
+        }
+
         protected override void Dispose(bool isDisposing)
         {
             modSettingChangeTracker?.Dispose();
@@ -562,8 +586,8 @@ namespace PerformanceCalculatorGUI.Screens
             base.Dispose(isDisposing);
         }
 
-        private ModSettingChangeTracker modSettingChangeTracker;
-        private ScheduledDelegate debouncedStatisticsUpdate;
+        private ModSettingChangeTracker? modSettingChangeTracker;
+        private ScheduledDelegate? debouncedStatisticsUpdate;
 
         private void modsChanged(ValueChangedEvent<IReadOnlyList<Mod>> mods)
         {
@@ -579,20 +603,17 @@ namespace PerformanceCalculatorGUI.Screens
 
             updateMissesTextboxes();
 
-            // recreate calculators to update DHOs
-            createCalculators();
-
+            modSettingChangeTracker?.Dispose();
             modSettingChangeTracker = new ModSettingChangeTracker(mods.NewValue);
             modSettingChangeTracker.SettingChanged += m =>
             {
                 debouncedStatisticsUpdate?.Cancel();
                 debouncedStatisticsUpdate = Scheduler.AddDelayed(() =>
                 {
-                    createCalculators();
                     updateMissesTextboxes();
                     calculateDifficulty();
                     calculatePerformance();
-                }, 100);
+                }, 300);
             };
 
             calculateDifficulty();
@@ -624,6 +645,13 @@ namespace PerformanceCalculatorGUI.Screens
                 return;
             }
 
+            var beatmapLinkMatch = beatmapLinkRegex().Match(beatmap);
+
+            if (beatmapLinkMatch.Success && beatmapLinkMatch.Groups.Count == 2)
+            {
+                beatmap = beatmapLinkMatch.Groups[1].ToString();
+            }
+
             try
             {
                 working = ProcessorWorkingBeatmap.FromFileOrId(beatmap, audio, configManager.GetBindable<string>(Settings.CachePath).Value);
@@ -647,6 +675,7 @@ namespace PerformanceCalculatorGUI.Screens
                 resetCalculations();
             }
 
+            beatmapTitle.Clear();
             beatmapTitle.Add(new BeatmapCard(working));
 
             loadBackground();
@@ -654,32 +683,21 @@ namespace PerformanceCalculatorGUI.Screens
             beatmapDataContainer.Show();
         }
 
-        private void createCalculators()
-        {
-            if (working is null)
-                return;
-
-            var rulesetInstance = ruleset.Value.CreateInstance();
-            difficultyCalculator.Value = RulesetHelper.GetExtendedDifficultyCalculator(ruleset.Value, working);
-            performanceCalculator = rulesetInstance.CreatePerformanceCalculator();
-        }
-
         private void calculateDifficulty()
         {
-            if (working == null || difficultyCalculator.Value == null)
+            if (working == null)
                 return;
 
             try
             {
-                difficultyAttributes = difficultyCalculator.Value.Calculate(appliedMods.Value);
-                difficultyAttributesContainer.Children = AttributeConversion.ToDictionary(difficultyAttributes).Select(x =>
-                    new ExtendedLabelledTextBox
-                    {
-                        ReadOnly = true,
-                        Label = x.Key.Humanize().ToLowerInvariant(),
-                        Text = FormattableString.Invariant($"{x.Value:N2}")
-                    }
-                ).ToArray();
+                var rulesetInstance = ruleset.Value.CreateInstance();
+                var extendedDifficultyCalculator = RulesetHelper.GetExtendedDifficultyCalculator(ruleset.Value, working);
+                performanceCalculator = rulesetInstance.CreatePerformanceCalculator();
+
+                difficultyAttributes = extendedDifficultyCalculator.Calculate(appliedMods.Value);
+                difficultyAttributesContainer.Attributes.Value = AttributeConversion.ToDictionary(difficultyAttributes);
+
+                difficultyCalculator.Value = extendedDifficultyCalculator;
             }
             catch (Exception e)
             {
@@ -688,16 +706,8 @@ namespace PerformanceCalculatorGUI.Screens
                 return;
             }
 
-            if (difficultyCalculator.Value is IExtendedDifficultyCalculator extendedDifficultyCalculator)
-            {
-                // StrainSkill always skips the first object
-                if (working.Beatmap?.HitObjects.Count > 1)
-                    strainVisualizer.TimeUntilFirstStrain.Value = (int)working.Beatmap.HitObjects[1].StartTime;
-
-                strainVisualizer.Skills.Value = extendedDifficultyCalculator.GetSkills();
-            }
-            else
-                strainVisualizer.Skills.Value = Array.Empty<Skill>();
+            if (working.Beatmap?.HitObjects.Count > 1)
+                strainVisualizer.TimeUntilFirstStrain.Value = (int)working.Beatmap.HitObjects[1].StartTime;
         }
 
         private void debouncedCalculatePerformance()
@@ -733,16 +743,16 @@ namespace PerformanceCalculatorGUI.Screens
                     // official rulesets can generate more precise hits from accuracy
                     if (appliedMods.Value.OfType<OsuModClassic>().Any(m => m.NoSliderHeadAccuracy.Value))
                     {
-                        statistics = RulesetHelper.GenerateHitResultsForRuleset(ruleset.Value, accuracyTextBox.Value.Value / 100.0, beatmap, missesTextBox.Value.Value, countMeh, countGood,
+                        statistics = RulesetHelper.GenerateHitResultsForRuleset(ruleset.Value, accuracyTextBox.Value.Value / 100.0, beatmap, appliedMods.Value.ToArray(), missesTextBox.Value.Value, countMeh, countGood,
                             null, null);
                     }
                     else
                     {
-                        statistics = RulesetHelper.GenerateHitResultsForRuleset(ruleset.Value, accuracyTextBox.Value.Value / 100.0, beatmap, missesTextBox.Value.Value, countMeh, countGood,
+                        statistics = RulesetHelper.GenerateHitResultsForRuleset(ruleset.Value, accuracyTextBox.Value.Value / 100.0, beatmap, appliedMods.Value.ToArray(), missesTextBox.Value.Value, countMeh, countGood,
                             largeTickMissesTextBox.Value.Value, sliderTailMissesTextBox.Value.Value);
                     }
 
-                    accuracy = RulesetHelper.GetAccuracyForRuleset(ruleset.Value, beatmap, statistics);
+                    accuracy = RulesetHelper.GetAccuracyForRuleset(ruleset.Value, beatmap, statistics, appliedMods.Value.ToArray());
                 }
 
                 var ppAttributes = performanceCalculator?.Calculate(new ScoreInfo(beatmap.BeatmapInfo, ruleset.Value)
@@ -752,17 +762,11 @@ namespace PerformanceCalculatorGUI.Screens
                     Statistics = statistics,
                     Mods = appliedMods.Value.ToArray(),
                     TotalScore = score,
-                    Ruleset = ruleset.Value
+                    Ruleset = ruleset.Value,
+                    LegacyTotalScore = legacyTotalScore,
                 }, difficultyAttributes);
 
-                performanceAttributesContainer.Children = AttributeConversion.ToDictionary(ppAttributes).Select(x =>
-                    new ExtendedLabelledTextBox
-                    {
-                        ReadOnly = true,
-                        Label = x.Key.Humanize().ToLowerInvariant(),
-                        Text = FormattableString.Invariant($"{x.Value:N2}")
-                    }
-                ).ToArray();
+                performanceAttributesContainer.Attributes.Value = AttributeConversion.ToDictionary(ppAttributes);
             }
             catch (Exception e)
             {
@@ -876,9 +880,6 @@ namespace PerformanceCalculatorGUI.Screens
                         new Dimension(GridSizeMode.AutoSize)
                     }
                 };
-
-                fixupTextBox(goodsTextBox);
-                fixupTextBox(mehsTextBox);
             }
             else
             {
@@ -889,17 +890,7 @@ namespace PerformanceCalculatorGUI.Screens
                     new Dimension(GridSizeMode.Absolute),
                     new Dimension(GridSizeMode.AutoSize)
                 };
-
-                fixupTextBox(accuracyTextBox);
             }
-        }
-
-        private void fixupTextBox(LabelledTextBox textbox)
-        {
-            // This is a hack around TextBox's way of updating layout and positioning of text
-            // It can only be triggered by a couple of input events and there's no way to invalidate it from the outside
-            // See: https://github.com/ppy/osu-framework/blob/fd5615732033c5ea650aa5cabc8595883a2b63f5/osu.Framework/Graphics/UserInterface/TextBox.cs#L528
-            textbox.TriggerEvent(new FocusEvent(new InputState(), this));
         }
 
         private void resetMods()
@@ -919,8 +910,9 @@ namespace PerformanceCalculatorGUI.Screens
 
         private void resetCalculations()
         {
-            createCalculators();
             resetMods();
+            legacyTotalScore = null;
+
             calculateDifficulty();
             calculatePerformance();
             populateScoreParams();
@@ -961,7 +953,7 @@ namespace PerformanceCalculatorGUI.Screens
                 RemoveInternal(background, true);
             }
 
-            if (working.BeatmapInfo?.BeatmapSet?.OnlineID is not null)
+            if (working?.BeatmapInfo?.BeatmapSet?.OnlineID is not null)
             {
                 LoadComponentAsync(background = new BufferedContainer
                 {
@@ -978,12 +970,6 @@ namespace PerformanceCalculatorGUI.Screens
                             Origin = Anchor.Centre,
                             FillMode = FillMode.Fill
                         },
-                        new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = OsuColour.Gray(0),
-                            Alpha = 0.85f
-                        },
                     }
                 }).ContinueWith(_ =>
                 {
@@ -995,11 +981,11 @@ namespace PerformanceCalculatorGUI.Screens
             }
         }
 
-        private void showError(Exception e)
+        private void showError(Exception? e)
         {
-            Logger.Log(e.ToString(), level: LogLevel.Error);
+            Logger.Log(e?.ToString(), level: LogLevel.Error);
 
-            string message = e is AggregateException aggregateException ? aggregateException.Flatten().Message : e.Message;
+            string message = e is AggregateException aggregateException ? aggregateException.Flatten().Message : e?.Message ?? "Unknown error";
             showError(message, false);
         }
 
@@ -1011,7 +997,9 @@ namespace PerformanceCalculatorGUI.Screens
             notificationDisplay.Display(new Notification(message));
         }
 
-        private void populateSettingsFromScore(long scoreId)
+        private long? legacyTotalScore;
+
+        private void populateSettingsFromScore(ulong scoreId)
         {
             if (scoreIdPopulateButton.State.Value == ButtonState.Loading)
                 return;
@@ -1020,72 +1008,91 @@ namespace PerformanceCalculatorGUI.Screens
 
             Task.Run(async () =>
             {
-                try
-                {
-                    var scoreInfo = await apiManager.GetJsonFromApi<SoloScoreInfo>($"scores/{scoreId}").ConfigureAwait(false);
+                var scoreInfo = await apiManager.GetJsonFromApi<SoloScoreInfo>($"scores/{scoreId}").ConfigureAwait(false);
 
-                    Schedule(() =>
+                Schedule(() =>
+                {
+                    if (scoreInfo.BeatmapID != working?.BeatmapInfo.OnlineID)
                     {
-                        if (scoreInfo.BeatmapID != working.BeatmapInfo.OnlineID)
+                        beatmapIdTextBox.Text = string.Empty;
+                        changeBeatmap(scoreInfo.BeatmapID.ToString());
+                    }
+
+                    ruleset.Value = rulesets.GetRuleset(scoreInfo.RulesetID)!;
+                    appliedMods.Value = scoreInfo.Mods.Select(x => x.ToMod(ruleset.Value.CreateInstance())).ToList();
+
+                    legacyTotalScore = scoreInfo.LegacyTotalScore;
+
+                    fullScoreDataSwitch.Current.Value = true;
+
+                    // TODO: this shouldn't be done in 2 lines
+                    comboTextBox.Value.Value = scoreInfo.MaxCombo;
+                    comboTextBox.Text = scoreInfo.MaxCombo.ToString();
+
+                    resetMisses();
+                    updateMissesTextboxes();
+
+                    if (scoreInfo.Statistics.TryGetValue(HitResult.Miss, out int misses))
+                    {
+                        missesTextBox.Value.Value = misses;
+                        missesTextBox.Text = misses.ToString();
+                    }
+
+                    if (scoreInfo.Statistics.TryGetValue(HitResult.Ok, out int oks))
+                    {
+                        goodsTextBox.Value.Value = oks;
+                        goodsTextBox.Text = oks.ToString();
+                    }
+
+                    if (scoreInfo.Statistics.TryGetValue(HitResult.Meh, out int mehs))
+                    {
+                        mehsTextBox.Value.Value = mehs;
+                        mehsTextBox.Text = mehs.ToString();
+                    }
+
+                    if (ruleset.Value?.ShortName == "fruits")
+                    {
+                        if (scoreInfo.Statistics.TryGetValue(HitResult.LargeTickHit, out int largeTickHits))
                         {
-                            beatmapIdTextBox.Text = string.Empty;
-                            changeBeatmap(scoreInfo.BeatmapID.ToString());
+                            goodsTextBox.Value.Value = largeTickHits;
+                            goodsTextBox.Text = largeTickHits.ToString();
                         }
 
-                        ruleset.Value = rulesets.GetRuleset(scoreInfo.RulesetID);
-                        appliedMods.Value = scoreInfo.Mods.Select(x => x.ToMod(ruleset.Value.CreateInstance())).ToList();
-
-                        fullScoreDataSwitch.Current.Value = true;
-
-                        // TODO: this shouldn't be done in 2 lines
-                        comboTextBox.Value.Value = scoreInfo.MaxCombo;
-                        comboTextBox.Text = scoreInfo.MaxCombo.ToString();
-
-                        resetMisses();
-                        updateMissesTextboxes();
-
-                        if (scoreInfo.Statistics.TryGetValue(HitResult.Miss, out int misses))
+                        if (scoreInfo.Statistics.TryGetValue(HitResult.SmallTickHit, out int smallTickHits))
                         {
-                            missesTextBox.Value.Value = misses;
-                            missesTextBox.Text = misses.ToString();
+                            mehsTextBox.Value.Value = smallTickHits;
+                            mehsTextBox.Text = smallTickHits.ToString();
                         }
+                    }
 
-                        if (scoreInfo.Statistics.TryGetValue(HitResult.Ok, out int oks))
-                        {
-                            goodsTextBox.Value.Value = oks;
-                            goodsTextBox.Text = oks.ToString();
-                        }
+                    if (scoreInfo.Statistics.TryGetValue(HitResult.LargeTickMiss, out int largeTickMisses))
+                    {
+                        largeTickMissesTextBox.Value.Value = largeTickMisses;
+                        largeTickMissesTextBox.Text = largeTickMisses.ToString();
+                    }
 
-                        if (scoreInfo.Statistics.TryGetValue(HitResult.Meh, out int mehs))
-                        {
-                            mehsTextBox.Value.Value = mehs;
-                            mehsTextBox.Text = mehs.ToString();
-                        }
+                    if (scoreInfo.Statistics.TryGetValue(HitResult.SliderTailHit, out int sliderTailHits))
+                    {
+                        int sliderTailMisses = scoreInfo.MaximumStatistics[HitResult.SliderTailHit] - sliderTailHits;
+                        sliderTailMissesTextBox.Value.Value = sliderTailMisses;
+                        sliderTailMissesTextBox.Text = sliderTailMisses.ToString();
+                    }
 
-                        if (scoreInfo.Statistics.TryGetValue(HitResult.LargeTickMiss, out int largeTickMisses))
-                        {
-                            largeTickMissesTextBox.Value.Value = largeTickMisses;
-                            largeTickMissesTextBox.Text = largeTickMisses.ToString();
-                        }
+                    calculateDifficulty();
+                    calculatePerformance();
 
-                        if (scoreInfo.Statistics.TryGetValue(HitResult.SliderTailHit, out int sliderTailHits))
-                        {
-                            int sliderTailMisses = scoreInfo.MaximumStatistics[HitResult.SliderTailHit] - sliderTailHits;
-                            sliderTailMissesTextBox.Value.Value = sliderTailMisses;
-                            sliderTailMissesTextBox.Text = sliderTailMisses.ToString();
-                        }
-
-                        calculateDifficulty();
-                        calculatePerformance();
-
-                        scoreIdPopulateButton.State.Value = ButtonState.Done;
-                    });
-                }
-                catch (Exception e)
+                    scoreIdPopulateButton.State.Value = ButtonState.Done;
+                });
+            }).ContinueWith(t =>
+            {
+                showError(t.Exception);
+            }, TaskContinuationOptions.OnlyOnFaulted).ContinueWith(t =>
+            {
+                Schedule(() =>
                 {
-                    Schedule(() => showError(e));
-                }
-            });
+                    scoreIdPopulateButton.State.Value = ButtonState.Done;
+                });
+            }, TaskContinuationOptions.None);
         }
 
         private void resetMisses()
@@ -1114,11 +1121,7 @@ namespace PerformanceCalculatorGUI.Screens
                 {
                     missesContainer.Content = new[] { new[] { missesTextBox, largeTickMissesTextBox, sliderTailMissesTextBox } };
                     missesContainer.ColumnDimensions = [new Dimension(), new Dimension(), new Dimension()];
-                    fixupTextBox(largeTickMissesTextBox);
-                    fixupTextBox(sliderTailMissesTextBox);
                 }
-
-                fixupTextBox(missesTextBox);
             }
         }
     }

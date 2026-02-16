@@ -11,6 +11,7 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Events;
 using osu.Framework.Logging;
 using osu.Game.Graphics;
@@ -29,6 +30,7 @@ using osuTK.Input;
 using PerformanceCalculatorGUI.Components;
 using PerformanceCalculatorGUI.Components.TextBoxes;
 using PerformanceCalculatorGUI.Configuration;
+using PerformanceCalculatorGUI.Screens.Profile;
 using ButtonState = PerformanceCalculatorGUI.Components.ButtonState;
 
 namespace PerformanceCalculatorGUI.Screens
@@ -38,44 +40,46 @@ namespace PerformanceCalculatorGUI.Screens
         [Cached]
         private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Plum);
 
-        private StatefulButton calculationButton;
-        private SwitchButton includePinnedCheckbox;
-        private SwitchButton onlyDisplayBestCheckbox;
-        private VerboseLoadingLayer loadingLayer;
+        private StatefulButton calculationButton = null!;
+        private SwitchButton includePinnedCheckbox = null!;
+        private SwitchButton onlyDisplayBestCheckbox = null!;
+        private VerboseLoadingLayer loadingLayer = null!;
 
-        private GridContainer layout;
+        private GridContainer layout = null!;
 
-        private FillFlowContainer<ExtendedProfileScore> scores;
+        private FillFlowContainer<ExtendedProfileScore> scores = null!;
 
-        private LabelledTextBox usernameTextBox;
-        private Container userPanelContainer;
-        private UserCard userPanel;
+        private LabelledTextBox usernameTextBox = null!;
+        private Container userPanelContainer = null!;
+        private UserCard? userPanel;
 
         private string[] currentUsers = Array.Empty<string>();
 
-        private CancellationTokenSource calculationCancellatonToken;
+        private CancellationTokenSource? calculationCancellatonToken;
 
-        private OverlaySortTabControl<ProfileSortCriteria> sortingTabControl;
+        private OverlaySortTabControl<ProfileSortCriteria> sortingTabControl = null!;
         private readonly Bindable<ProfileSortCriteria> sorting = new Bindable<ProfileSortCriteria>(ProfileSortCriteria.Local);
 
         [Resolved]
-        private NotificationDisplay notificationDisplay { get; set; }
+        private NotificationDisplay notificationDisplay { get; set; } = null!;
 
         [Resolved]
-        private APIManager apiManager { get; set; }
+        private APIManager apiManager { get; set; } = null!;
 
         [Resolved]
-        private Bindable<RulesetInfo> ruleset { get; set; }
+        private Bindable<RulesetInfo> ruleset { get; set; } = null!;
 
         [Resolved]
-        private SettingsManager configManager { get; set; }
+        private SettingsManager configManager { get; set; } = null!;
 
         [Resolved]
-        private RulesetStore rulesets { get; set; }
+        private RulesetStore rulesets { get; set; } = null!;
 
         public override bool ShouldShowConfirmationDialogOnSwitch => false;
 
         private const float username_container_height = 40;
+        private const int max_api_scores = 200;
+        private const int max_api_scores_in_one_query = 100;
 
         public ProfileScreen()
         {
@@ -87,6 +91,11 @@ namespace PerformanceCalculatorGUI.Screens
         {
             InternalChildren = new Drawable[]
             {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = colourProvider.Background6
+                },
                 layout = new GridContainer
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -365,11 +374,8 @@ namespace PerformanceCalculatorGUI.Screens
                             if (performanceCalculator == null)
                                 continue;
 
-                            double? livePp = score.Pp;
                             var perfAttributes = await performanceCalculator.CalculateAsync(scoreInfo, difficultyAttributes, token).ConfigureAwait(false);
-                            score.Pp = perfAttributes.Total;
-
-                            var extendedScore = new ExtendedScore(score, livePp, perfAttributes);
+                            var extendedScore = new ExtendedScore(score, difficultyAttributes, perfAttributes);
                             plays.Add(extendedScore);
                         }
                     }
@@ -409,14 +415,14 @@ namespace PerformanceCalculatorGUI.Screens
 
                     foreach (int id in beatmapIDs)
                     {
-                        var bestPlayOnBeatmap = plays.Where(x => x.SoloScore.BeatmapId == id).OrderByDescending(x => x.SoloScore.Pp).First();
+                        var bestPlayOnBeatmap = plays.Where(x => x.SoloScore.BeatmapId == id).OrderByDescending(x => x.PerformanceAttributes?.Total).First();
                         filteredPlays.Add(bestPlayOnBeatmap);
                     }
 
                     plays = filteredPlays;
                 }
 
-                var localOrdered = plays.OrderByDescending(x => x.SoloScore.Pp).ToList();
+                var localOrdered = plays.OrderByDescending(x => x.PerformanceAttributes?.Total).ToList();
                 var liveOrdered = plays.OrderByDescending(x => x.LivePP ?? 0).ToList();
 
                 Schedule(() =>
@@ -438,27 +444,23 @@ namespace PerformanceCalculatorGUI.Screens
                     var player = players.First();
 
                     decimal totalLocalPP = 0;
+
                     for (int i = 0; i < localOrdered.Count; i++)
-                        totalLocalPP += (decimal)(Math.Pow(0.95, i) * (localOrdered[i].SoloScore.Pp ?? 0));
+                        totalLocalPP += (decimal)(Math.Pow(0.95, i) * localOrdered[i].PerformanceAttributes?.Total ?? 0);
 
                     decimal totalLivePP = (decimal?)player.TotalPp ?? (decimal)0.0;
 
-                    decimal nonBonusLivePP = 0;
-                    for (int i = 0; i < liveOrdered.Count; i++)
-                        nonBonusLivePP += (decimal)(Math.Pow(0.95, i) * liveOrdered[i].LivePP ?? 0);
-
-                    //todo: implement properly. this is pretty damn wrong.
-                    decimal playcountBonusPP = (totalLivePP - nonBonusLivePP);
-                    totalLocalPP += playcountBonusPP;
-
                     Schedule(() =>
                     {
-                        userPanel.Data.Value = new UserCardData
+                        if (userPanel != null)
                         {
-                            LivePP = totalLivePP,
-                            LocalPP = totalLocalPP,
-                            PlaycountPP = playcountBonusPP
-                        };
+                            userPanel.Data.Value = new UserCardData
+                            {
+                                LivePP = totalLivePP,
+                                LocalPP = totalLocalPP,
+                                PlaycountPP = 0
+                            };
+                        }
                     });
                 }
             }, token).ContinueWith(t =>
@@ -487,7 +489,7 @@ namespace PerformanceCalculatorGUI.Screens
 
         protected override bool OnKeyDown(KeyDownEvent e)
         {
-            if (e.Key == Key.Escape && !calculationCancellatonToken.IsCancellationRequested)
+            if (e.Key == Key.Escape && calculationCancellatonToken?.IsCancellationRequested == false)
             {
                 calculationCancellatonToken?.Cancel();
             }
@@ -509,11 +511,11 @@ namespace PerformanceCalculatorGUI.Screens
                     break;
 
                 case ProfileSortCriteria.Local:
-                    sortedScores = scores.Children.OrderByDescending(x => x.Score.PerformanceAttributes.Total).ToArray();
+                    sortedScores = scores.Children.OrderByDescending(x => x.Score.PerformanceAttributes?.Total).ToArray();
                     break;
 
                 case ProfileSortCriteria.Difference:
-                    sortedScores = scores.Children.OrderByDescending(x => x.Score.PerformanceAttributes.Total - x.Score.LivePP).ToArray();
+                    sortedScores = scores.Children.OrderByDescending(x => x.Score.PerformanceAttributes?.Total - x.Score.LivePP).ToArray();
                     break;
 
                 default:
