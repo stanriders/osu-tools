@@ -12,7 +12,7 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
 {
     public partial class OsuObjectInspectorRenderer : PooledDrawableWithLifetimeContainer<OsuObjectInspectorLifetimeEntry, OsuObjectInspectorDrawable>
     {
-        private DrawablePool<OsuObjectInspectorDrawable> pool;
+        private DrawablePool<OsuObjectInspectorDrawable> pool = null!;
 
         private readonly List<OsuObjectInspectorLifetimeEntry> lifetimeEntries = new();
 

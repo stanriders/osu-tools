@@ -76,7 +76,7 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                         Height = 2,
                         Rotation = float.RadiansToDegrees(line.Theta),
                         EdgeSmoothness = Vector2.One,
-                        Colour = movement.IsNested ? Colour4.LightGreen : Colour4.White
+                        Colour = movement.PrimaryMovement ? Colour4.White : Colour4.LightGreen
                     });
 
                     using (panel.BeginAbsoluteSequence(movement.StartTime - 500))
