@@ -145,7 +145,6 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                 new ObjectInspectorDifficultyValue(hidden ? "FLHD Difficulty" : "Flashlight Diff", FlashlightEvaluator.EvaluateDifficultyOf(hitObject, appliedMods.Value)),
             });
 
-                flowContainer.Add(new ObjectInspectorDifficultyValue("Angle", double.RadiansToDegrees(hitObject.Angle.Value)));
             if (hitObject.BaseObject is Slider)
             {
                 flowContainer.AddRange(new Drawable[]
