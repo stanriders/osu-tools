@@ -17,6 +17,7 @@ using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.Taiko;
 using osu.Game.Rulesets.Taiko.Objects;
+using osu.Game.Scoring;
 
 namespace PerformanceCalculatorGUI
 {
@@ -46,20 +47,14 @@ namespace PerformanceCalculatorGUI
             };
         }
 
-        public static int AdjustManiaScore(int score, IReadOnlyList<Mod> mods)
+        public static int AdjustManiaScore(int score, IReadOnlyList<Mod> mods, Ruleset ruleset)
         {
-            if (score != 1000000) return score;
+            if (score != 1000000)
+                return score;
 
-            double scoreMultiplier = 1;
+            var scoreMultiplierCalculator = ruleset.CreateScoreMultiplierCalculator(new ScoreMultiplierContext(new BeatmapDifficulty())); // we don't really care about the beatmap difficulty
 
-            // Cap score depending on difficulty adjustment mods (matters for mania).
-            foreach (var mod in mods)
-            {
-                if (mod.Type == ModType.DifficultyReduction)
-                    scoreMultiplier *= mod.ScoreMultiplier;
-            }
-
-            return (int)Math.Round(1000000 * scoreMultiplier);
+            return (int)Math.Round(1000000 * scoreMultiplierCalculator.CalculateFor(mods));
         }
 
         public static Dictionary<HitResult, int> GenerateHitResultsForRuleset(RulesetInfo ruleset, double accuracy, IBeatmap beatmap, Mod[] mods, int countMiss, int? countMeh, int? countGood, int? countLargeTickMisses, int? countSliderTailMisses)
