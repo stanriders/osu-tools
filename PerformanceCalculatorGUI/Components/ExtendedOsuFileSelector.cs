@@ -12,13 +12,13 @@ namespace PerformanceCalculatorGUI.Components
 {
     public class LegacyBeatmapMetadataDecoder : LegacyBeatmapDecoder
     {
-        protected override void ParseLine(Beatmap beatmap, Section section, string line)
+        protected override void ParseLine(Beatmap beatmap, Section section, string line, bool isPrimaryStream)
         {
             // early out to only parse relevant data
             if (section != Section.Metadata && section != Section.General)
                 return;
 
-            base.ParseLine(beatmap, section, line);
+            base.ParseLine(beatmap, section, line, isPrimaryStream);
         }
     }
 
