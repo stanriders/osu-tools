@@ -137,7 +137,7 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                 new ObjectInspectorDifficultyValue("Delta Time", hitObject.DeltaTime),
                 new ObjectInspectorDifficultyValue("Adjusted Delta Time", hitObject.AdjustedDeltaTime),
                 new ObjectInspectorDifficultyValue("Last Obj End Delta Time", hitObject.LastObjectEndDeltaTime),
-                new ObjectInspectorDifficultyValue("Doubletapness", hitObject.GetDoubletapness((OsuDifficultyHitObject)hitObject.Next(0))),
+                new ObjectInspectorDifficultyValue("Doubletapness", hitObject.CalculateDoubleTapFeasibility((OsuDifficultyHitObject)hitObject.Next(0))),
 
                 new ObjectInspectorDifficultyValue("Speed Difficulty", SpeedEvaluator.EvaluateDifficultyOf(hitObject)),
                 new ObjectInspectorDifficultyValue("Rhythm Difficulty", osu.Game.Rulesets.Osu.Difficulty.Evaluators.Speed.RhythmEvaluator.EvaluateDifficultyOf(hitObject)),
@@ -179,9 +179,9 @@ namespace PerformanceCalculatorGUI.Screens.ObjectInspection
                     new ObjectInspectorDifficultyValue($"{i}. Distance", movement.Distance),
                     new ObjectInspectorDifficultyValue($"{i}. Time", movement.Time),
                     new ObjectInspectorDifficultyValue($"{i}. Radius", Math.Max(movement.StartRadius, movement.EndRadius)),
-                    new ObjectInspectorDifficultyValue($"{i}. Snap Difficulty", SnapAimEvaluator.EvaluateDifficultyOf(hitObject, movement)),
-                    new ObjectInspectorDifficultyValue($"{i}. Agility Difficulty", AgilityEvaluator.EvaluateDifficultyOf(hitObject, movement)),
-                    new ObjectInspectorDifficultyValue($"{i}. Flow Difficulty", FlowAimEvaluator.EvaluateDifficultyOf(hitObject, movement))
+                    new ObjectInspectorDifficultyValue($"{i}. Snap Difficulty", SnapAimEvaluator.EvaluateDifficultyOf(movement)),
+                    new ObjectInspectorDifficultyValue($"{i}. Agility Difficulty", AgilityEvaluator.EvaluateDifficultyOf(movement)),
+                    new ObjectInspectorDifficultyValue($"{i}. Flow Difficulty", FlowAimEvaluator.EvaluateDifficultyOf(movement))
                 });
 
                 if (movement.PreviousMovement != null)
